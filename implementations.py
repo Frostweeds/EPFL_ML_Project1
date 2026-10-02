@@ -18,7 +18,24 @@ from helpers import batch_iter
 # ---------------------------------------------------------------------------
 # Shared helpers
 # ---------------------------------------------------------------------------
+def build_poly(x, degree):
+    """polynomial basis functions for input data x, for j=0 up to j=degree.
 
+    Args:
+        x: numpy array of shape (N,), N is the number of samples.
+        degree: integer.
+
+    Returns:
+        poly: numpy array of shape (N,d+1)
+
+    >>> build_poly(np.array([0.0, 1.5]), 2)
+    array([[1.  , 0.  , 0.  ],
+           [1.  , 1.5 , 2.25]])
+    """
+    def extend(sample):
+        return np.array([ sample ** i for i in range(0, degree + 1)])
+
+    return np.array([extend(s) for s in x])
 
 def compute_mse(y, tx, w):
     """Compute the mean squared error loss, with the 0.5 factor from the course notes.
@@ -97,9 +114,10 @@ def mean_squared_error_gd(y, tx, initial_w, max_iters, gamma):
         loss: scalar, MSE loss corresponding to w
     """
     w = initial_w
-    for n_iter in range(max_iters):
+    for _ in range(max_iters):
         grad = compute_mse_gradient(y, tx, w)
         w = w - gamma * grad
+
     loss = compute_mse(y, tx, w)
     return w, loss
 
@@ -124,10 +142,11 @@ def mean_squared_error_sgd(y, tx, initial_w, max_iters, gamma):
         loss: scalar, MSE loss corresponding to w
     """
     w = initial_w
-    for n_iter in range(max_iters):
+    for _ in range(max_iters):
         for batch_y, batch_tx in batch_iter(y, tx, batch_size=1, num_batches=1):
             grad = compute_mse_gradient(batch_y, batch_tx, w)
             w = w - gamma * grad
+
     loss = compute_mse(y, tx, w)
     return w, loss
 
@@ -151,7 +170,13 @@ def least_squares(y, tx):
         loss: scalar, MSE loss corresponding to w
     """
     # TODO: solve tx.T @ tx @ w = tx.T @ y (e.g. via np.linalg.solve), then compute loss
-    raise NotImplementedError
+    tx_T = tx.transpose()
+    tx_T_tx = tx_T.dot(tx)
+
+    w_optimal = np.linalg.solve(tx_T_tx, tx_T.dot(y))
+    mse = compute_mse(y, tx, w_optimal)
+
+    return w_optimal, mse
 
 
 # ---------------------------------------------------------------------------
@@ -171,8 +196,14 @@ def ridge_regression(y, tx, lambda_):
         w: shape (D,), optimal weights
         loss: scalar, MSE loss corresponding to w (WITHOUT the penalty term)
     """
-    # TODO: solve (tx.T @ tx + lambda' * I) @ w = tx.T @ y, then compute MSE loss (no penalty)
-    raise NotImplementedError
+    tx_T = tx.transpose()
+    tx_T_tx = tx_T.dot(tx)
+    llambda = 2 * y.shape[0] * lambda_ * np.eye(tx.shape[1])
+
+    w_optimal = np.linalg.solve(tx_T_tx + llambda, tx_T.dot(y))
+    mse = compute_mse(y, tx, w_optimal)
+
+    return w_optimal, mse
 
 
 # ---------------------------------------------------------------------------
