@@ -1,6 +1,9 @@
 # Data (large, must be downloaded from AIcrowd, never committed)
 data/*.csv
 data/*.zip
+data/*.npz
+!data/experiment_6.npz
+data/experiment_*/
 *.csv
 !report/**/*.csv
 
@@ -25,3 +28,6 @@ report/*.synctex.gz
 
 # OS
 .DS_Store
+
+# Claude Code
+.claude/
