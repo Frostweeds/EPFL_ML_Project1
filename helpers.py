@@ -9,6 +9,15 @@ import numpy as np
 import os
 
 
+def load_csv_data_labels(data_path):
+    """Return {column index: feature name} for the columns of x_train as returned by load_csv_data."""
+    with open(os.path.join(data_path, "x_train.csv")) as file:
+        labels = file.readline().strip().split(",")
+
+    # Drop the "Id" column, which load_csv_data strips from x_train
+    return dict(enumerate(labels[1:]))
+
+
 def load_csv_data(data_path, sub_sample=False):
     """
     This function loads the data and returns the respectinve numpy arrays.

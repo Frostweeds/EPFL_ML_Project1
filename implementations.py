@@ -32,10 +32,12 @@ def build_poly(x, degree):
     array([[1.  , 0.  , 0.  ],
            [1.  , 1.5 , 2.25]])
     """
+
     def extend(sample):
-        return np.array([ sample ** i for i in range(0, degree + 1)])
+        return np.array([sample**i for i in range(0, degree + 1)])
 
     return np.array([extend(s) for s in x])
+
 
 def compute_mse(y, tx, w):
     """Compute the mean squared error loss, with the 0.5 factor from the course notes.
@@ -69,8 +71,7 @@ def compute_mse_gradient(y, tx, w):
 
 def sigmoid(t):
     """Numerically stable sigmoid, applied elementwise."""
-    # TODO: implement
-    raise NotImplementedError
+    return 1 / (1 + np.exp(-t))
 
 
 def compute_logistic_loss(y, tx, w):
@@ -84,14 +85,15 @@ def compute_logistic_loss(y, tx, w):
     Returns:
         loss: scalar (0-dim)
     """
-    # TODO: implement
-    raise NotImplementedError
+    pred = sigmoid(tx.dot(w))
+    a = y * np.log(pred)
+    b = (1 - y) * np.log(1 - pred)
+    return -1 / len(y) * (a + b).sum()
 
 
 def compute_logistic_gradient(y, tx, w):
     """Compute the gradient of the logistic regression loss w.r.t. w."""
-    # TODO: implement
-    raise NotImplementedError
+    return 1 / len(y) * tx.T.dot(sigmoid(tx.dot(w)) - y)
 
 
 # ---------------------------------------------------------------------------
@@ -226,8 +228,12 @@ def logistic_regression(y, tx, initial_w, max_iters, gamma):
         loss: scalar, negative log-likelihood loss corresponding to w
     """
     w = initial_w
-    # TODO: implement max_iters GD updates using compute_logistic_gradient
-    raise NotImplementedError
+    for _ in range(max_iters):
+        grad = compute_logistic_gradient(y, tx, w)
+        w = w - gamma * grad
+
+    loss = compute_logistic_loss(y, tx, w)
+    return w, loss
 
 
 # ---------------------------------------------------------------------------
@@ -251,8 +257,9 @@ def reg_logistic_regression(y, tx, lambda_, initial_w, max_iters, gamma):
         loss: scalar, negative log-likelihood loss corresponding to w (WITHOUT the penalty term)
     """
     w = initial_w
-    # TODO: implement max_iters GD updates on the regularized objective, e.g.
-    #   grad = compute_logistic_gradient(y, tx, w) + 2 * lambda_ * w
-    #   w = w - gamma * grad
-    # but report compute_logistic_loss(y, tx, w) (unregularized) as the loss.
-    raise NotImplementedError
+    for _ in range(max_iters):
+        grad = compute_logistic_gradient(y, tx, w) + 2 * lambda_ * w
+        w = w - gamma * grad
+
+    loss = compute_logistic_loss(y, tx, w)
+    return w, loss
