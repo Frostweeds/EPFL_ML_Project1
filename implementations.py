@@ -144,10 +144,12 @@ def mean_squared_error_sgd(y, tx, initial_w, max_iters, gamma):
         loss: scalar, MSE loss corresponding to w
     """
     w = initial_w
-    for _ in range(max_iters):
-        for batch_y, batch_tx in batch_iter(y, tx, batch_size=1, num_batches=1):
-            grad = compute_mse_gradient(batch_y, batch_tx, w)
-            w = w - gamma * grad
+    # Shuffle the data once, then take max_iters single-sample steps through it (cycling
+    # if max_iters > N). Each step costs O(D). Calling batch_iter once per step would
+    # re-shuffle and copy the whole dataset every time, i.e. O(N D) per step.
+    for batch_y, batch_tx in batch_iter(y, tx, batch_size=1, num_batches=max_iters):
+        grad = compute_mse_gradient(batch_y, batch_tx, w)
+        w = w - gamma * grad
 
     loss = compute_mse(y, tx, w)
     return w, loss
@@ -171,11 +173,11 @@ def least_squares(y, tx):
         w: shape (D,), optimal weights
         loss: scalar, MSE loss corresponding to w
     """
-    # TODO: solve tx.T @ tx @ w = tx.T @ y (e.g. via np.linalg.solve), then compute loss
     tx_T = tx.transpose()
     tx_T_tx = tx_T.dot(tx)
 
-    w_optimal = np.linalg.solve(tx_T_tx, tx_T.dot(y))
+    # w_optimal = np.linalg.solve(tx_T_tx, tx_T.dot(y))
+    w_optimal = np.linalg.pinv(tx_T_tx).dot(tx_T.dot(y))
     mse = compute_mse(y, tx, w_optimal)
 
     return w_optimal, mse
