@@ -105,7 +105,7 @@ def drop_columns_by_name(labels, data, filter_names):
 
 
 # Above this many distinct values, a column is not expanded
-MAX_CATEGORIES = 10
+MAX_CATEGORIES = 100  # EXRACT11: 75 activity types
 
 
 def expand_category_column(labels, data, column, categories=None, nan_category=False):

@@ -148,6 +148,12 @@ Cross-validated F1 (3 folds, `logistic_regression`, `gamma = 1`, 300 iterations)
 | `experiment_5` | = `experiment_3`, rebuilt by the current notebook | 358 | 0.4277 / 0.4260 / 0.4374 | 0.4304 |
 | `experiment_6` | `experiment_5` + `HAREHAB1` leak feature | 359 | 0.4358 / 0.4358 / 0.4448 | **0.4388** |
 | `experiment_7` | bias + `HAREHAB1` leak feature only | 2 | 0.1607 / 0.1595 / 0.1656 | 0.1619 ² |
+| `experiment_8` | `experiment_5` with missing indicators before the constant / incomplete filters (includes `HAREHAB1_missing`) | 368 | 0.4360 / 0.4363 / 0.4447 | 0.4390 ³ |
+| `experiment_9` | `experiment_8` with the correlated-pair filter after the one-hot expansion | 352 | 0.4364 / 0.4364 / 0.4451 | 0.4393 ⁴ |
+| `experiment_10` | `experiment_9` with the outliers clipped before the correlated-pair filter | 351 | 0.4363 / 0.4363 / 0.4451 | 0.4392 ⁵ |
+| `experiment_11` | `experiment_10` without the `HAREHAB1_missing` leak | 350 | 0.4287 / 0.4272 / 0.4375 | 0.4311 |
+| `experiment_12` | `experiment_11` with the low output correlation filter after one-hot and clipping | 312 | 0.4275 / 0.4256 / 0.4377 | 0.4303 ⁶ |
+| `experiment_13` | `experiment_12` with the codes and nominal columns checked against the codebook PDF — the dataset described in `report/` (`report/code`) | 356 | 0.4287 / 0.4256 / 0.4368 | 0.4304 ⁷ |
 
 On the validation split: `experiment_5` F1 = 0.4275, `experiment_6` F1 = 0.4365.
 
@@ -158,6 +164,33 @@ column after filling NaN (neutral: 0.4306 on `experiment_3` alone).
 ² = the "everyone positive" baseline (2 · 0.088 / 1.088 = 0.162): the leak alone catches only 2.7% of
 the positives, so the best threshold predicts every row positive. The leak is only useful on top of
 the other features.
+
+³ = `experiment_6` within noise (+0.0002), without a hand-picked leak column: the indicators of
+columns later dropped as constant / incomplete are kept (if >= 100 rows are missing, never dropped as
+constant). Without `HAREHAB1_missing`: 0.4282 / 0.4268 / 0.4370, mean 0.4307 (`experiment_5`: 0.4304).
+
+⁴ = `experiment_8` within noise with 16 fewer features: the filter also drops 18 duplicate dummies
+(race), leaving 1 pair with |correlation| >= 0.95 (27 in `experiment_8`). Without `HAREHAB1_missing`:
+0.4288 / 0.4271 / 0.4370, mean 0.4311. `tx.T @ tx` is still singular (12 exact linear dependencies
+between derived columns, e.g. `_RFSEAT3` = a sum of `SEATBELT` dummies, or a one-hot group + its
+missing indicator = bias): `least_squares` max |w| 6e6 -> 148, but not well-posed; use ridge.
+
+⁵ = `experiment_9` within noise. The pair left in `experiment_9` is `PAFREQ2_` = 7 x `EXEROFT2`:
+|correlation| 0.9485 before clipping (a few capped outliers), 0.9994 after. Clipped first, the filter
+drops `EXEROFT2`: no feature pair with |correlation| >= 0.95 (max 0.947). Without `HAREHAB1_missing`:
+0.4287 / 0.4272 / 0.4375, mean 0.4311 (= `experiment_11`).
+
+⁶ = `experiment_11` within noise (-0.0008), chosen for the report: the pipeline runs in contiguous
+phases (cleaning, quality filters on the raw columns, encoding, selection on the encoded features,
+scaling). The low output filter no longer judges the arbitrary codes of nominal columns
+(MARITAL 1 - 6) but each dummy: it drops 45 weak dummies (e.g. `MARITAL_4`). 6 exact linear
+dependencies left in `tx.T @ tx` (12 in `experiment_11`).
+
+⁷ = `experiment_12` within noise, with every special code compared to the codebook text: `CHKHEMO3`
+98 (never heard of the A1C test) and `SCNTWRK1` / `SCNTLWK1` 98 (zero hours) are 0, no longer 98
+tests / hours; 12 more nominal columns are one-hot expanded instead of used as numbers
+(`EXRACT11` / `EXRACT21` activity type, `IMFVPLAC` place of the flu shot, `_RACE`, ...,
+`EYEEXAM` whose 8 = never). `report/code` is the cleaned-up code of this dataset (bit-identical).
 
 Other experiments on `experiment_3` (no dataset saved), all **neutral or worse**:
 

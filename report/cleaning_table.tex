@@ -1,0 +1,36 @@
+% Cleaning and quality filters of experiment_13 (normalize.py, codebook.py, build_dataset.py), in code order.
+% Requires \usepackage{booktabs} and \usepackage{tabularx}.
+\begin{table}[t]
+  \centering
+  \caption{Cleaning and quality filters of the raw BRFSS columns, in code order,
+    using the special answer codes of the BRFSS 2015 codebook. Change: columns
+    dropped or added; Modified: columns whose values are changed. HAREHAB1 (cardiac
+    rehabilitation) is only asked after a heart attack, part of the target: its
+    missing indicator is a target leak.}
+  \label{tab:cleaning}
+  \footnotesize
+  \setlength{\tabcolsep}{4pt}
+  % no gap in the vertical lines at the horizontal rules
+  \setlength{\aboverulesep}{0pt}
+  \setlength{\belowrulesep}{0pt}
+  \renewcommand{\arraystretch}{1.3}
+  \newcommand{\step}[2]{#1\newline\hspace*{1em}\textit{e.g.\ #2}}
+  \newcommand{\phase}[1]{\multicolumn{1}{@{}l|}{\textbf{#1}} & & & \\}
+  \begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}X|r|r|r@{}}
+    \toprule
+    Step & Change & Modified & Columns \\
+    \midrule
+    Raw BRFSS columns & & & 321 \\
+    \phase{Cleaning}
+    \step{``Don't know'' / ``refused'' codes $\rightarrow$ NaN}{PHYSHLTH: 77, 99 $\rightarrow$ NaN} & & 247 & 321 \\
+    \step{``None'' / ``never'' codes $\rightarrow$ 0}{PHYSHLTH: 88 (no bad day) $\rightarrow$ 0} & & 32 & 321 \\
+    \step{Units $\rightarrow$ kg, cm, per day, minutes, years}{ALCDAY5: 203 (3 per 30 days) $\rightarrow$ 0.1/day} & & 19 & 321 \\
+    \step{Identifiers and survey design dropped}{\_LLCPWT, survey weight} & $-22$ & & 299 \\
+    \step{Missing indicators ($> 5\%$ NaN, $\geq 100$ rows)}{INCOME2\_missing = 1 if NaN} & $+222$ & & 521 \\
+    \phase{Quality filters}
+    \step{Constant (top value $\geq 99\%$)}{PVTRESD1, private residence} & $-8$ & & 513 \\
+    \step{Incomplete ($> 99\%$ NaN)}{ASATTACK, asthma attack} & $-28$ & & 485 \\
+    \step{Target leak}{HAREHAB1\_missing} & $-1$ & & 484 \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
