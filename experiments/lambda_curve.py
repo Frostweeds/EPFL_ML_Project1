@@ -58,7 +58,9 @@ def plot(results, path):
     """F1 vs lambda: CV (solid, ± std band) and train (dashed). In: results, path without extension."""
     plt.rcParams.update({"font.size": 8, "font.family": "serif"})
     fig, ax = plt.subplots(figsize=(3.4, 2.3))
-    x = [1e-7 if lam == 0 else lam for lam in LAMBDAS]  # lambda = 0 drawn at 1e-7, labelled "0"
+    x = [
+        1e-7 if lam == 0 else lam for lam in LAMBDAS
+    ]  # lambda = 0 drawn at 1e-7, labelled "0"
     for model in ["ridge", "logistic"]:
         r = results[model]
         cv = np.array([s["f1"] for s in r])
@@ -90,7 +92,10 @@ def latex_table(results):
         r"\hline",
     ]
     for i, lam in enumerate(LAMBDAS):
-        cells = [f"${results[m][i]['f1']:.3f} \\pm {results[m][i]['f1_std']:.3f}$" for m in ["ridge", "logistic"]]
+        cells = [
+            f"${results[m][i]['f1']:.3f} \\pm {results[m][i]['f1_std']:.3f}$"
+            for m in ["ridge", "logistic"]
+        ]
         name = "0" if lam == 0 else f"$10^{{{int(np.log10(lam))}}}$"
         lines.append(f"{name} & {cells[0]} & {cells[1]} \\\\")
     lines += [r"\hline", r"\end{tabular}"]
