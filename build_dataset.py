@@ -19,10 +19,11 @@ import os
 import numpy as np
 
 from helpers import load_csv_data, load_csv_data_labels
-from normalize import normalize_codes, normalize_nan
+from normalize import normalize_codes, normalize_nan, replace_codes
 from preprocessing import (
     CATEGORY_COLUMNS,
     IDENTIFIER_COLUMNS,
+    MIN_ROWS,
     SURVEY_DESIGN_COLUMNS,
     add_bias,
     add_missing_indicator_columns,
@@ -46,6 +47,12 @@ DEFAULT_SETTINGS = {
     "expand_categories": True,
     "incomplete_nan_ratio": 0.99,  # columns with more NaN are dropped
     "missing_indicator_nan_ratio": 0.05,  # None: no missing indicators
+    "early_missing_indicators": False,  # before the constant / incomplete filters
+    "correlation_after_one_hot": False,  # feature - feature filter also sees the dummies
+    "clip_before_correlation": False,  # the late filter sees the clipped values
+    "drop_columns": [],  # dropped once the missing indicators exist
+    "low_output_after_one_hot": False,  # judges each dummy, not the nominal codes
+    "codebook_fixes": False,  # CODEBOOK_FIX_NONE_CODES, EXTRA_CATEGORY_COLUMNS
     "poly_columns": [],
     "poly_degree": 2,
     "leak_columns": [],
@@ -69,7 +76,57 @@ EXPERIMENTS = {
     5: {},
     6: {"leak_columns": ["HAREHAB1"]},
     7: {"leak_columns": ["HAREHAB1"], "leak_only": True},
+    8: {"early_missing_indicators": True},
+    9: {"early_missing_indicators": True, "correlation_after_one_hot": True},
+    10: {
+        "early_missing_indicators": True,
+        "correlation_after_one_hot": True,
+        "clip_before_correlation": True,
+    },
+    # experiment_10 without the HAREHAB1 leak
+    11: {
+        "early_missing_indicators": True,
+        "correlation_after_one_hot": True,
+        "clip_before_correlation": True,
+        "drop_columns": ["HAREHAB1_missing"],
+    },
+    # experiment_11 with the low output correlation filter after one-hot and clipping
+    12: {
+        "early_missing_indicators": True,
+        "correlation_after_one_hot": True,
+        "clip_before_correlation": True,
+        "drop_columns": ["HAREHAB1_missing"],
+        "low_output_after_one_hot": True,
+    },
+    # experiment_12 with the codes and nominal columns checked against the codebook PDF
+    13: {
+        "early_missing_indicators": True,
+        "correlation_after_one_hot": True,
+        "clip_before_correlation": True,
+        "drop_columns": ["HAREHAB1_missing"],
+        "low_output_after_one_hot": True,
+        "codebook_fixes": True,
+    },
 }
+
+# Missed by codebook.py: 98 = never heard of the A1C test, zero hours of work
+CODEBOOK_FIX_NONE_CODES = {"CHKHEMO3": [98], "SCNTWRK1": [98], "SCNTLWK1": [98]}
+
+# Nominal columns missed by CATEGORY_COLUMNS
+EXTRA_CATEGORY_COLUMNS = [
+    "EYEEXAM",
+    "EXRACT11",
+    "EXRACT21",
+    "IMFVPLAC",
+    "CRGVREL1",
+    "CRGVPRB1",
+    "TETANUS",
+    "ASPUNSAF",
+    "SCNTPAID",
+    "SCNTLPAD",
+    "_CPRACE",
+    "_RACE",
+]
 
 
 def drop(labels, x_train, x_test, filter_names):
@@ -90,6 +147,9 @@ def build_features(x_labels, x_train, x_test, y_train, settings):
     labels = x_labels
     x_tr = normalize_codes(labels, x_train)
     x_te = normalize_codes(labels, x_test)
+    if settings["codebook_fixes"]:
+        x_tr = replace_codes(labels, x_tr, CODEBOOK_FIX_NONE_CODES, 0)
+        x_te = replace_codes(labels, x_te, CODEBOOK_FIX_NONE_CODES, 0)
 
     # Column filters
     non_feature_columns = [
@@ -98,7 +158,29 @@ def build_features(x_labels, x_train, x_test, y_train, settings):
         if name not in settings["keep_columns"]
     ]
     labels, x_tr, x_te = drop(labels, x_tr, x_te, non_feature_columns)
-    labels, x_tr, x_te = drop(labels, x_tr, x_te, find_constant_columns(labels, x_tr))
+
+    # Early: the indicators of the columns dropped as constant / incomplete are kept
+    # (e.g. HAREHAB1_missing), if at least MIN_ROWS rows are missing
+    early = settings["early_missing_indicators"]
+    if early and settings["missing_indicator_nan_ratio"] is not None:
+        index = {name: j for (j, name) in labels.items()}
+        indicator_columns = [
+            name
+            for name in filter_incomplete_column(
+                labels, x_tr, settings["missing_indicator_nan_ratio"]
+            )
+            if np.isnan(x_tr[:, index[name]]).sum() >= MIN_ROWS
+        ]
+        _, x_te = add_missing_indicator_columns(labels, x_te, indicator_columns)
+        labels, x_tr = add_missing_indicator_columns(labels, x_tr, indicator_columns)
+
+    # Indicators are rare by design, never dropped as constant
+    constant_columns = [
+        name
+        for name in find_constant_columns(labels, x_tr)
+        if not name.endswith("_missing")
+    ]
+    labels, x_tr, x_te = drop(labels, x_tr, x_te, constant_columns)
     labels, x_tr, x_te = drop(
         labels,
         x_tr,
@@ -106,7 +188,7 @@ def build_features(x_labels, x_train, x_test, y_train, settings):
         filter_incomplete_column(labels, x_tr, settings["incomplete_nan_ratio"]),
     )
 
-    if settings["missing_indicator_nan_ratio"] is not None:
+    if not early and settings["missing_indicator_nan_ratio"] is not None:
         indicator_columns = filter_incomplete_column(
             labels, x_tr, settings["missing_indicator_nan_ratio"]
         )
@@ -114,18 +196,57 @@ def build_features(x_labels, x_train, x_test, y_train, settings):
         labels, x_tr = add_missing_indicator_columns(labels, x_tr, indicator_columns)
 
     labels, x_tr, x_te = drop(
-        labels, x_tr, x_te, find_correlated_columns(labels, x_tr, y_train)
+        labels,
+        x_tr,
+        x_te,
+        [name for name in settings["drop_columns"] if name in labels.values()],
     )
-    labels, x_tr, x_te = drop(
-        labels, x_tr, x_te, find_low_output_correlation_columns(labels, x_tr, y_train)
-    )
+
+    correlation_after_one_hot = settings["correlation_after_one_hot"]
+    if not correlation_after_one_hot:
+        labels, x_tr, x_te = drop(
+            labels, x_tr, x_te, find_correlated_columns(labels, x_tr, y_train)
+        )
+    low_output_after_one_hot = settings["low_output_after_one_hot"]
+    if not low_output_after_one_hot:
+        labels, x_tr, x_te = drop(
+            labels,
+            x_tr,
+            x_te,
+            find_low_output_correlation_columns(labels, x_tr, y_train),
+        )
 
     # One-hot expansion of the nominal columns
     if settings["expand_categories"]:
-        for name in [name for name in CATEGORY_COLUMNS if name in labels.values()]:
+        category_columns = CATEGORY_COLUMNS + (
+            EXTRA_CATEGORY_COLUMNS if settings["codebook_fixes"] else []
+        )
+        for name in [name for name in category_columns if name in labels.values()]:
             train_labels, x_tr, categories = expand_category_column(labels, x_tr, name)
             _, x_te, _ = expand_category_column(labels, x_te, name, categories)
             labels = train_labels
+
+    # Clipped first: a few outliers can hide a duplicate (PAFREQ2_ = 7 x EXEROFT2)
+    clip_early = correlation_after_one_hot and settings["clip_before_correlation"]
+    if clip_early:
+        x_tr, outlier_bounds = filter_outliers(x_tr)
+        x_te, _ = filter_outliers(x_te, bounds=outlier_bounds)
+
+    # The nominal codes (MARITAL 1 - 6) are labels: correlated with y only as dummies
+    if low_output_after_one_hot:
+        labels, x_tr, x_te = drop(
+            labels,
+            x_tr,
+            x_te,
+            find_low_output_correlation_columns(labels, x_tr, y_train),
+        )
+
+    # After: no feature pair above the threshold, dummies included (exact duplicates
+    # make tx.T @ tx singular for least_squares)
+    if correlation_after_one_hot:
+        labels, x_tr, x_te = drop(
+            labels, x_tr, x_te, find_correlated_columns(labels, x_tr, y_train)
+        )
 
     # Leak features: answered in the raw data
     leak_columns = settings["leak_columns"]
@@ -138,8 +259,9 @@ def build_features(x_labels, x_train, x_test, y_train, settings):
         labels = dict(enumerate(names))
 
     # Outliers, NaN, scale
-    x_tr, outlier_bounds = filter_outliers(x_tr)
-    x_te, _ = filter_outliers(x_te, bounds=outlier_bounds)
+    if not clip_early:
+        x_tr, outlier_bounds = filter_outliers(x_tr)
+        x_te, _ = filter_outliers(x_te, bounds=outlier_bounds)
     mean, std = compute_mean_std(x_tr)
     x_tr = standardize(normalize_nan(x_tr, mean), mean, std)
     x_te = standardize(normalize_nan(x_te, mean), mean, std)
