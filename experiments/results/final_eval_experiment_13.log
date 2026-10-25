@@ -1,0 +1,7 @@
+experiment_13: CV F1 0.4304 ± 0.0047 | hold-out F1 0.4276, precision 0.3597, recall 0.5271, accuracy 0.8742, predicted positive 0.1306, sigma(t) 0.206
+  confusion: {'tp': 3084, 'fp': 5490, 'fn': 2767, 'tn': 54286}
+
+LaTeX rows (model & CV F1 & hold-out F1 & precision & recall & accuracy):
+experiment_13 & $0.430 \pm 0.005$ & 0.428 & 0.360 & 0.527 & 0.874 \\
+
+written /home/frostweeds/Documents/courses/ML_Project1/experiments/../experiments/results/final_eval.json

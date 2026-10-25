@@ -56,6 +56,7 @@ def lambda_max(tx):
 
 def baselines(gamma_gd):
     """The 6 methods, fixed hyperparameters. Out: dict name -> fit(tx, y, y01) -> (w (D,), loss)."""
+
     def w0(tx):
         return np.zeros(tx.shape[1])
 
@@ -117,7 +118,9 @@ def main():
     # GD step: MSE Hessian = X^T X / N, so L = lambda_max / N and GD converges iff gamma < 2/L.
     # Logistic Hessian <= X^T X / (4N), so gamma < 8/L is guaranteed.
     L = lambda_max(tx) / len(y)
-    print(f"L = {L:.3f}: MSE gamma < {2 / L:.4f} (we use 1/L), logistic gamma < {8 / L:.3f}")
+    print(
+        f"L = {L:.3f}: MSE gamma < {2 / L:.4f} (we use 1/L), logistic gamma < {8 / L:.3f}"
+    )
 
     out = {"dataset": DATASET, "L_mse": L, "methods": {}}
     for name, fit in baselines(1 / L).items():
@@ -126,6 +129,7 @@ def main():
 
     print(f"\n{'method':<46}{'F1 CV':>17}{'F1 train':>10}{'F1 @0':>8}{'acc':>7}")
     for name, folds in out["methods"].items():
+
         def mean(key):
             return np.mean([f[key] for f in folds])
 
@@ -136,7 +140,9 @@ def main():
         )
         print(f"{'':<46}per fold: " + " / ".join(f"{f['f1']:.4f}" for f in folds))
     folds = make_folds(len(y))
-    print(f"{'all positive':<46}{np.mean([f1(y[i] == 1, np.ones(len(i), bool)) for i in folds]):>9.4f}")
+    print(
+        f"{'all positive':<46}{np.mean([f1(y[i] == 1, np.ones(len(i), bool)) for i in folds]):>9.4f}"
+    )
 
     path = f"{ROOT}/experiments/results/baselines_cv_{os.path.basename(DATASET.rstrip('/'))}.json"
     os.makedirs(os.path.dirname(path), exist_ok=True)

@@ -1,0 +1,31 @@
+lambda = 0: ridge 0.4174, logistic 0.4304
+lambda = 1e-06: ridge 0.4174, logistic 0.4305
+lambda = 1e-05: ridge 0.4175, logistic 0.4305
+lambda = 0.0001: ridge 0.4177, logistic 0.4299
+lambda = 0.001: ridge 0.4179, logistic 0.4307
+lambda = 0.01: ridge 0.4174, logistic 0.4258
+lambda = 0.1: ridge 0.4153, logistic 0.4114
+lambda = 1: ridge 0.4019, logistic 0.3851
+lambda = 10: ridge 0.3775, logistic 0.3711
+
+\begin{tabular}{lcc}
+\hline
+$\lambda$ & Ridge & Reg.\ logistic \\
+\hline
+0 & $0.417 \pm 0.006$ & $0.430 \pm 0.005$ \\
+$10^{-6}$ & $0.417 \pm 0.006$ & $0.431 \pm 0.005$ \\
+$10^{-5}$ & $0.417 \pm 0.006$ & $0.431 \pm 0.005$ \\
+$10^{-4}$ & $0.418 \pm 0.006$ & $0.430 \pm 0.004$ \\
+$10^{-3}$ & $0.418 \pm 0.006$ & $0.431 \pm 0.006$ \\
+$10^{-2}$ & $0.417 \pm 0.006$ & $0.426 \pm 0.006$ \\
+$10^{-1}$ & $0.415 \pm 0.006$ & $0.411 \pm 0.006$ \\
+$10^{0}$ & $0.402 \pm 0.005$ & $0.385 \pm 0.003$ \\
+$10^{1}$ & $0.377 \pm 0.003$ & $0.371 \pm 0.004$ \\
+\hline
+\end{tabular}
+
+written /home/frostweeds/Documents/courses/ML_Project1/experiments/../experiments/results/lambda_curve_experiment_13.json / .pdf / .png
+
+real	10m7.663s
+user	186m14.841s
+sys	0m13.867s

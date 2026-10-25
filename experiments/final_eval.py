@@ -14,7 +14,14 @@ import sys
 import numpy as np
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from baselines_cv import ROOT, best_threshold, cross_validate, f1, impl, split  # noqa: E402
+from baselines_cv import (
+    ROOT,
+    best_threshold,
+    cross_validate,
+    f1,
+    impl,
+    split,
+)  # noqa: E402
 
 DATASETS = sys.argv[1:] or ["data/experiment_5", "data/experiment_6"]
 
