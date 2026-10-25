@@ -1,0 +1,43 @@
+data/experiment_5: train split (262508, 358), P(y=1) = 0.0881, 3 folds of ~87503 rows
+lambda_max(X^T X)/N = 13.663 -> MSE GD: gamma = 1/L = 0.0732 (diverges above 2/L = 0.1464); logistic: 2/L >= 0.586 (gamma = 1 used)
+least_squares                          F1 = 0.3366 ± 0.1175   (2s)
+ridge_regression                       F1 = 0.4173 ± 0.0063   (2s)
+mean_squared_error_gd                  F1 = 0.4172 ± 0.0062   (53s)
+mean_squared_error_sgd (1000 steps)    F1 = 0.3375 ± 0.0098   (2s)
+mean_squared_error_sgd (1 epoch)       F1 = 0.4108 ± 0.0042   (4s)
+logistic_regression                    F1 = 0.4304 ± 0.0050   (57s)
+reg_logistic_regression                F1 = 0.4302 ± 0.0047   (55s)
+
+method                                           F1 CV  F1 train    F1 @0     acc  time/fold
+least_squares                            0.3366 ± 0.1175    0.3390   0.1162  0.7779       0.7s
+ridge_regression                         0.4173 ± 0.0063    0.4212   0.0933  0.8650       0.6s
+mean_squared_error_gd                    0.4172 ± 0.0062    0.4208   0.0907  0.8710      17.5s
+mean_squared_error_sgd (1000 steps)      0.3375 ± 0.0098    0.3371   0.3103  0.8337       0.6s
+mean_squared_error_sgd (1 epoch)         0.4108 ± 0.0042    0.4125   0.0884  0.8596       1.5s
+logistic_regression                      0.4304 ± 0.0050    0.4367   0.2406  0.8739      18.9s
+reg_logistic_regression                  0.4302 ± 0.0047    0.4366   0.2400  0.8757      18.5s
+all positive                             0.1619 ± 0.0026
+
+per-fold F1:
+  least_squares                         0.4143 / 0.1706 / 0.4249
+  ridge_regression                      0.4155 / 0.4107 / 0.4258
+  mean_squared_error_gd                 0.4152 / 0.4109 / 0.4256
+  mean_squared_error_sgd (1000 steps)   0.3237 / 0.3434 / 0.3454
+  mean_squared_error_sgd (1 epoch)      0.4083 / 0.4073 / 0.4167
+  logistic_regression                   0.4277 / 0.4260 / 0.4374
+  reg_logistic_regression               0.4278 / 0.4260 / 0.4367
+
+LaTeX rows (method & F1 CV & F1 train & F1 at default threshold):
+least\_squares & $0.337 \pm 0.117$ & 0.339 & 0.116 \\
+ridge\_regression & $0.417 \pm 0.006$ & 0.421 & 0.093 \\
+mean\_squared\_error\_gd & $0.417 \pm 0.006$ & 0.421 & 0.091 \\
+mean\_squared\_error\_sgd (1000 steps) & $0.337 \pm 0.010$ & 0.337 & 0.310 \\
+mean\_squared\_error\_sgd (1 epoch) & $0.411 \pm 0.004$ & 0.413 & 0.088 \\
+logistic\_regression & $0.430 \pm 0.005$ & 0.437 & 0.241 \\
+reg\_logistic\_regression & $0.430 \pm 0.005$ & 0.437 & 0.240 \\
+
+written /tmp/claude-0/-home-claude/f2687bd8-2bac-571d-8e3f-52a1cf06e3c4/scratchpad/proj/experiments/results/baselines_cv_experiment_5.json
+
+real	3m13.612s
+user	5m56.143s
+sys	0m9.206s
