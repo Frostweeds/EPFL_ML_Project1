@@ -66,8 +66,8 @@ def baselines(gamma_gd):
         "mse_gd (300 it, gamma=1/L)": lambda tx, y, y01: impl.mean_squared_error_gd(
             y, tx, w0(tx), 300, gamma_gd
         ),
-        "mse_sgd (1000 steps, gamma=1e-3)": lambda tx, y, y01: impl.mean_squared_error_sgd(
-            y, tx, w0(tx), 1000, 1e-3
+        "mse_sgd (10 epochs, gamma=1e-5)": lambda tx, y, y01: impl.mean_squared_error_sgd(
+            y, tx, w0(tx), 10 * len(y), 1e-5
         ),
         "mse_sgd (1 epoch, gamma=1e-4)": lambda tx, y, y01: impl.mean_squared_error_sgd(
             y, tx, w0(tx), len(y), 1e-4
