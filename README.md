@@ -24,11 +24,11 @@ source/
 
 Requires Python 3 and numpy (`pip install numpy`).
 
-1. Download `x_train.csv`, `y_train.csv` and `x_test.csv` from AIcrowd into `data/`
-   at the root of the repository.
-2. Run from the repository root:
+1. Download `x_train.csv`, `y_train.csv` and `x_test.csv` from AIcrowd into a folder,
+   by default `data/` at the root of the repository.
+2. Run, optionally passing that folder (default `./data`):
 
 ```
-python source/run.py               # writes submission.csv
-python source/cross_validation.py  # model comparison, lambda curve, hold-out evaluation
+python source/run.py [data_dir]               # writes submission.csv
+python source/cross_validation.py [data_dir]  # model comparison, lambda curve, hold-out evaluation
 ```
