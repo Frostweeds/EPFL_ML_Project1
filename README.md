@@ -1,23 +1,22 @@
 # ML Project 1 — Cardiovascular disease prediction
 
 Predicting MICHD (coronary heart disease / myocardial infarction) from the BRFSS 2015
-survey, with the 6 methods of `source/implementations.py` (numpy only). The task is
-described in `project1_description.pdf`.
+survey, with the 6 methods of `implementations.py` (numpy only). The task is described in
+`project1_description.pdf`.
 
 ## Layout
 
 ```
 project1_description.pdf   the assignment
 report/                    the report
-source/
-  implementations.py       the 6 required methods (least squares, ridge, GD, SGD, logistic, reg. logistic)
-  helpers.py               CSV loading, submission writer
-  normalize.py             BRFSS special codes (CDC codebook) -> NaN / 0, units
-  preprocessing.py         cleaning and imputation
-  features.py              feature construction used by the report
-  model.py                 F1 score and F1-maximizing threshold
-  cross_validation.py      model selection and evaluation of the report (~15 min)
-  run.py                   reproduces the submission (~2 min)
+implementations.py         the 6 required methods (least squares, ridge, GD, SGD, logistic, reg. logistic)
+run.py                     reproduces the submission (~2 min)
+cross_validation.py        model selection and evaluation of the report (~15 min)
+features.py                feature construction: raw rows -> model features
+normalize.py               BRFSS special codes (CDC codebook) -> NaN / 0, units
+preprocessing.py           column lists and the cleaning, encoding and selection steps
+model.py                   F1 score and F1-maximizing threshold
+helpers.py                 CSV loading, submission writer
 ```
 
 ## Usage
@@ -26,9 +25,65 @@ Requires Python 3 and numpy (`pip install numpy`).
 
 1. Download `x_train.csv`, `y_train.csv` and `x_test.csv` from AIcrowd into a folder,
    by default `data/` at the root of the repository.
-2. Run, optionally passing that folder (default `./data`):
+2. Run from the repository root, optionally passing that folder (default `./data`):
 
 ```
-python source/run.py [data_dir]               # writes submission.csv
-python source/cross_validation.py [data_dir]  # model comparison, lambda curve, hold-out evaluation
+python run.py [data_dir]               # writes submission.csv
+python cross_validation.py [data_dir]  # model comparison, lambda curve, hold-out evaluation
 ```
+
+## Pipeline
+
+### Data preparation and features (`features.py`)
+
+Every statistic (means, quantiles, correlations, categories) is fitted on `x_train` only
+and reused unchanged on `x_test`.
+
+1. **Special codes and units** (`normalize.py`): "don't know / refused / missing" answers
+   (e.g. 7, 9, 77, 99) become NaN and "none / never" answers (e.g. 88 days) become 0, per
+   column, from the BRFSS 2015 codebook. Weights are converted to kg, heights to cm and
+   frequencies (e.g. 203 = 3 per week) to times per day.
+2. **Identifiers dropped**: state, interview date, sequence number and survey-design
+   columns (weights, questionnaire version).
+3. **Missing indicators**: a 0/1 column `X_missing` for each column with more than 5% NaN
+   (and at least 100 NaN rows).
+4. **Constant / empty columns dropped**: one value in at least 99% of the rows, or more than
+   99% NaN; plus `HAREHAB1_missing`, which leaks the target (cardiac rehabilitation is only
+   asked after a heart attack).
+5. **One-hot encoding** of the nominal columns (`CATEGORY_COLUMNS` in `preprocessing.py`:
+   marital status, employment, diabetes, ...), one 0/1 column per category.
+6. **Outlier clipping**: continuous columns (more than 10 distinct values) clipped to their
+   1% and 99% quantiles.
+7. **Feature selection**: drop the columns with |correlation with y| < 0.01, then, for every
+   pair of features with |correlation| >= 0.95, the one less correlated with y.
+8. **Scaling**: NaN -> training mean, standardization, bias column. 356 features in the end.
+
+### Model (`run.py`)
+
+Logistic regression (`logistic_regression`, lambda = 0): gradient descent from w = 0,
+gamma = 1, 300 steps, on the whole training set. The positive class is rare (8.8%), so the
+decision threshold on x^T w is not 0 but the one maximizing F1 on the training rows, among
+100 score quantiles (`model.py`). Predictions are written in {-1, 1}.
+
+### Model selection and evaluation (`cross_validation.py`)
+
+- Fixed 80 / 20 split (seed 1); the 20% hold-out split is used once, for the selected model.
+- 3-fold cross-validation on the 80% split. The threshold is always chosen on the training
+  folds, then applied unchanged to the held-out fold.
+
+1. The 6 methods with fixed hyperparameters, compared by CV F1.
+2. CV F1 as a function of lambda for ridge regression and regularized logistic regression
+   (lambda from 0 to 10): regularization does not help, so the model uses lambda = 0.
+3. The selected model on the hold-out split.
+
+| method | 3-fold CV F1 |
+|---|---|
+| least squares | 0.417 |
+| ridge regression (lambda = 1e-3) | 0.418 |
+| GD on the MSE (300 steps, gamma = 1 / L) | 0.417 |
+| SGD on the MSE (10 epochs, gamma = 1e-5) | 0.417 |
+| SGD on the MSE (1 epoch, gamma = 1e-4) | 0.410 |
+| **logistic regression (300 steps, gamma = 1)** | **0.430** |
+| regularized logistic regression (lambda = 1e-4, 300 steps, gamma = 1) | 0.431 |
+
+Selected model on the hold-out split: F1 0.428.

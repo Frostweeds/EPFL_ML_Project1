@@ -1,6 +1,6 @@
 """Reproduce the submission of the report: features (features.py), logistic regression
 (implementations.py), F1-maximizing threshold.
-Usage: python source/run.py [data_dir]   (default: ./data, ~2 minutes)
+Usage: python run.py [data_dir]   (default: ./data, ~2 minutes)
 """
 
 import sys
@@ -14,7 +14,7 @@ from model import find_best_threshold
 
 DATA_DIR = sys.argv[1] if len(sys.argv) > 1 else "./data"
 
-# Model selection (experiments/): lambda = 0, gradient descent converged at 300 steps
+# Model selection (cross_validation.py): lambda = 0, gradient descent converged at 300 steps
 MAX_ITERS = 300
 GAMMA = 1.0
 

@@ -7,7 +7,7 @@
 Protocol: fixed 80 / 20 train / hold-out split; the 3 folds are taken in the 80% split, the
 hold-out split is used once, in 3. The decision threshold is always chosen on the training
 rows (F1-maximizing), then applied unchanged to the held-out rows.
-Usage: python source/cross_validation.py [data_dir]   (default: ./data, ~15 minutes)
+Usage: python cross_validation.py [data_dir]   (default: ./data, ~15 minutes)
 """
 
 import sys

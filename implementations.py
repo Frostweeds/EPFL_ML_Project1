@@ -68,7 +68,7 @@ def compute_mse_gradient(y, tx, w):
 
 
 def sigmoid(t):
-    """Numerically stable sigmoid, applied elementwise."""
+    """Sigmoid, applied elementwise."""
     return 1 / (1 + np.exp(-t))
 
 
