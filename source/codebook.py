@@ -2,9 +2,6 @@
 
 Source: https://www.cdc.gov/brfss/annual_data/2015/pdf/codebook15_llcp.pdf
 (linked from https://www.cdc.gov/brfss/annual_data/annual_2015.html).
-
-Codes are given at the scale of the course dataset: a few calculated variables were
-rescaled by the course (e.g. MAXVO2_ stores the codebook's 99900 as 999).
 """
 
 # "Don't know / Not sure", "Refused" and "Missing" answers, to be replaced by NaN
@@ -276,7 +273,7 @@ NONE_CODES = {
     "BLDSUGAR": [888],
     "FEETCHK2": [888],
     "DOCTDIAB": [88],
-    "CHKHEMO3": [88],
+    "CHKHEMO3": [88, 98],  # 98 = never heard of the A1C test
     "FEETCHK": [88],
     "ASERVIST": [88],
     "ASDRVIST": [88],
@@ -290,4 +287,6 @@ NONE_CODES = {
     "ADFAIL": [88],
     "ADTHINK": [88],
     "ADMOVE": [88],
+    "SCNTWRK1": [98],  # 98 = zero hours (does not work)
+    "SCNTLWK1": [98],
 }

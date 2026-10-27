@@ -24,7 +24,7 @@ from implementations import (
 )
 from model import f1_score, find_best_threshold
 
-DATA_DIR = "../../data"
+DATA_DIR = "../data"
 SEED = 1
 HOLDOUT_RATIO = 0.2
 K_FOLD = 3
@@ -104,8 +104,8 @@ methods = {
     )[
         0
     ],
-    "mean_squared_error_sgd (1000 steps, gamma = 1e-3)": lambda tx, y, y01: mean_squared_error_sgd(
-        y, tx, zeros, 1000, 1e-3
+    "mean_squared_error_sgd (10 epochs, gamma = 1e-5)": lambda tx, y, y01: mean_squared_error_sgd(
+        y, tx, zeros, 10 * len(y), 1e-5
     )[
         0
     ],
