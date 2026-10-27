@@ -12,8 +12,7 @@ report/                    the report
 source/
   implementations.py       the 6 required methods (least squares, ridge, GD, SGD, logistic, reg. logistic)
   helpers.py               CSV loading, mini-batches for SGD, submission writer
-  codebook.py              BRFSS missing / "none" answer codes (from the CDC codebook)
-  normalize.py             codebook codes -> NaN / 0
+  normalize.py             BRFSS special codes (CDC codebook) -> NaN / 0, units
   preprocessing.py         cleaning and imputation
   features.py              feature construction used by the report
   model.py                 F1 score and F1-maximizing threshold
