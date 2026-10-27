@@ -1,7 +1,9 @@
 """Reproduce the submission of the report: features (features.py), logistic regression
 (implementations.py), F1-maximizing threshold.
-Run from the repository root: python report/code/run.py (~2 minutes).
+Usage: python report/code/run.py [data_dir]   (default: ./data, ~2 minutes)
 """
+
+import sys
 
 import numpy as np
 
@@ -10,7 +12,7 @@ from helpers import create_csv_submission, load_csv_data, load_csv_data_labels
 from implementations import logistic_regression
 from model import find_best_threshold
 
-DATA_DIR = "./data"
+DATA_DIR = sys.argv[1] if len(sys.argv) > 1 else "./data"
 
 # Model selection (experiments/): lambda = 0, gradient descent converged at 300 steps
 MAX_ITERS = 300
