@@ -7,7 +7,7 @@
 Protocol: fixed 80 / 20 train / hold-out split; the 3 folds are taken in the 80% split, the
 hold-out split is used once, in 3. The decision threshold is always chosen on the training
 rows (F1-maximizing), then applied unchanged to the held-out rows.
-Run from this folder: python cross_validation.py (~15 minutes).
+Run from the repository root: python source/cross_validation.py (~15 minutes).
 """
 
 import numpy as np
@@ -24,7 +24,7 @@ from implementations import (
 )
 from model import f1_score, find_best_threshold
 
-DATA_DIR = "../data"
+DATA_DIR = "./data"
 SEED = 1
 HOLDOUT_RATIO = 0.2
 K_FOLD = 3
