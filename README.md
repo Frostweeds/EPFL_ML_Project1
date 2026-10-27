@@ -11,7 +11,7 @@ project1_description.pdf   the assignment
 report/                    the report
 source/
   implementations.py       the 6 required methods (least squares, ridge, GD, SGD, logistic, reg. logistic)
-  helpers.py               CSV loading, mini-batches for SGD, submission writer
+  helpers.py               CSV loading, submission writer
   normalize.py             BRFSS special codes (CDC codebook) -> NaN / 0, units
   preprocessing.py         cleaning and imputation
   features.py              feature construction used by the report

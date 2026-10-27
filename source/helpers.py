@@ -1,4 +1,4 @@
-"""Loading the course CSVs, mini-batches for SGD and writing the AIcrowd submission."""
+"""Loading the course CSVs and writing the AIcrowd submission."""
 
 import csv
 import os
@@ -29,27 +29,6 @@ def load_csv_data(data_path):
         os.path.join(data_path, "x_test.csv"), delimiter=",", skip_header=1
     )
     return x_train[:, 1:], x_test[:, 1:], y_train, x_test[:, 0].astype(int)
-
-
-def batch_iter(y, tx, batch_size, num_batches=1, shuffle=True):
-    """Generate a mini-batch iterator for (y, tx).
-
-    Yields `num_batches` batches of size `batch_size` from the shuffled
-    (or unshuffled) dataset. For SGD in this project, use batch_size=1.
-    """
-    data_size = len(y)
-    if shuffle:
-        shuffle_indices = np.random.permutation(np.arange(data_size))
-        shuffled_y = y[shuffle_indices]
-        shuffled_tx = tx[shuffle_indices]
-    else:
-        shuffled_y = y
-        shuffled_tx = tx
-    for batch_num in range(num_batches):
-        start_index = (batch_num * batch_size) % data_size
-        end_index = min(start_index + batch_size, data_size)
-        if end_index > start_index:
-            yield shuffled_y[start_index:end_index], shuffled_tx[start_index:end_index]
 
 
 def create_csv_submission(ids, y_pred, name):

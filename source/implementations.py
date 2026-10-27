@@ -12,12 +12,31 @@ project statement: no scikit-learn, no pandas, etc.).
 
 import numpy as np
 
-from helpers import batch_iter
-
 
 # ---------------------------------------------------------------------------
 # Shared helpers
 # ---------------------------------------------------------------------------
+def batch_iter(y, tx, batch_size, num_batches=1, shuffle=True):
+    """Generate a mini-batch iterator for (y, tx).
+
+    Yields `num_batches` batches of size `batch_size` from the shuffled
+    (or unshuffled) dataset. For SGD in this project, use batch_size=1.
+    """
+    data_size = len(y)
+    if shuffle:
+        shuffle_indices = np.random.permutation(np.arange(data_size))
+        shuffled_y = y[shuffle_indices]
+        shuffled_tx = tx[shuffle_indices]
+    else:
+        shuffled_y = y
+        shuffled_tx = tx
+    for batch_num in range(num_batches):
+        start_index = (batch_num * batch_size) % data_size
+        end_index = min(start_index + batch_size, data_size)
+        if end_index > start_index:
+            yield shuffled_y[start_index:end_index], shuffled_tx[start_index:end_index]
+
+
 def compute_mse(y, tx, w):
     """Compute the mean squared error loss, with the 0.5 factor from the course notes.
 
