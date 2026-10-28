@@ -1,13 +1,13 @@
 """Model selection and evaluation of the report, on the features of features.py:
 
-    1. the 6 methods of implementations.py, 3-fold CV F1
+    1. the 6 methods of implementations.py and the quadratic model (model.py), 3-fold CV F1
     2. F1 vs the regularization lambda (ridge, regularized logistic), 3-fold CV
-    3. the selected model (logistic regression, lambda = 0) on the 20% hold-out split
+    3. the selected model (quadratic model) on the 20% hold-out split
 
 Protocol: fixed 80 / 20 train / hold-out split; the 3 folds are taken in the 80% split, the
 hold-out split is used once, in 3. The decision threshold is always chosen on the training
 rows (F1-maximizing), then applied unchanged to the held-out rows.
-Usage: python cross_validation.py [data_dir]   (default: ./data, ~15 minutes)
+Usage: python cross_validation.py [data_dir]   (default: ./data, ~40 minutes)
 """
 
 import sys
@@ -17,7 +17,7 @@ import numpy as np
 from features import build_features
 from helpers import load_csv_data, load_csv_data_labels
 from implementations import *
-from model import f1_score, find_best_threshold
+from model import f1_score, find_best_threshold, quadratic_logistic
 
 DATA_DIR = sys.argv[1] if len(sys.argv) > 1 else "./data"
 SEED = 1
@@ -40,10 +40,10 @@ def largest_mse_curvature(tx):
     return eigenvalue / tx.shape[0]
 
 
-def cross_validate(fit, y, y01, tx, k_indices):
+def cross_validate(scores, y, y01, tx, k_indices):
     """Mean held-out F1, its std over the folds and the mean training F1.
-    fit(y, tx) -> (w, loss) is trained on y: {-1, 1} for the MSE methods, {0, 1} (y01) for
-    logistic; the F1 score is always computed on y01.
+    scores(y, tx_train, tx_test) -> (scores_train, scores_test) is trained on y: {-1, 1} for
+    the MSE methods, {0, 1} (y01) for logistic; the F1 score is always computed on y01.
     """
     f1_test, f1_train = [], []
 
@@ -52,13 +52,24 @@ def cross_validate(fit, y, y01, tx, k_indices):
         train = np.concatenate([k_indices[i] for i in range(K_FOLD) if i != k])
 
         np.random.seed(SEED + k)  # SGD shuffles with np.random
-        w, _ = fit(y[train], tx[train])
-        threshold = find_best_threshold(tx[train] @ w, y01[train])
+        scores_train, scores_test = scores(y[train], tx[train], tx[test])
+        threshold = find_best_threshold(scores_train, y01[train])
 
-        f1_test.append(f1_score(y01[test], (tx[test] @ w >= threshold) * 1.0))
-        f1_train.append(f1_score(y01[train], (tx[train] @ w >= threshold) * 1.0))
+        f1_test.append(f1_score(y01[test], (scores_test >= threshold) * 1.0))
+        f1_train.append(f1_score(y01[train], (scores_train >= threshold) * 1.0))
 
     return np.mean(f1_test), np.std(f1_test), np.mean(f1_train)
+
+
+def linear(fit):
+    """fit(y, tx) -> (w, loss) as a scores function: x^T w on both sets."""
+
+    def scores(y, tx_train, tx_test):
+        w, _ = fit(y, tx_train)
+
+        return tx_train @ w, tx_test @ w
+
+    return scores
 
 
 def format_cv(mean, std, train_f1):
@@ -101,7 +112,7 @@ k_indices = np.array_split(np.random.default_rng(SEED).permutation(len(train)), 
 L = largest_mse_curvature(tx_tr)
 zeros = np.zeros(tx.shape[1])
 
-# 1. The 6 methods: name -> (training labels, fit)
+# 1. The 6 methods (name -> training labels, fit), then the quadratic model
 methods = {
     "least_squares": (y_tr, least_squares),
     "ridge_regression (lambda = 1e-3)": (
@@ -134,8 +145,11 @@ print(f"{tx_tr.shape[0]} training rows, {tx.shape[1]} features, L = {L:.3f}\n")
 print(f"{'method':<64}{'CV F1':>17}{'train F1':>10}")
 
 for name, (y_fit, fit) in methods.items():
-    cv = cross_validate(fit, y_fit, y01_tr, tx_tr, k_indices)
+    cv = cross_validate(linear(fit), y_fit, y01_tr, tx_tr, k_indices)
     print(f"{name:<64}{format_cv(*cv)}", flush=True)
+
+cv = cross_validate(quadratic_logistic, y01_tr, y01_tr, tx_tr, k_indices)
+print(f"{'quadratic model (model.py)':<64}{format_cv(*cv)}", flush=True)
 
 # 2. F1 vs lambda
 print(
@@ -143,9 +157,9 @@ print(
 )
 
 for lambda_ in LAMBDAS:
-    ridge_cv = cross_validate(ridge(lambda_), y_tr, y01_tr, tx_tr, k_indices)
+    ridge_cv = cross_validate(linear(ridge(lambda_)), y_tr, y01_tr, tx_tr, k_indices)
     logistic_cv = cross_validate(
-        regularized_logistic(lambda_, L), y01_tr, y01_tr, tx_tr, k_indices
+        linear(regularized_logistic(lambda_, L)), y01_tr, y01_tr, tx_tr, k_indices
     )
 
     print(
@@ -153,11 +167,11 @@ for lambda_ in LAMBDAS:
         flush=True,
     )
 
-# 3. Selected model on the hold-out split, used once
-w, _ = logistic_regression(y01_tr, tx_tr, zeros, 300, 1.0)
-threshold = find_best_threshold(tx_tr @ w, y01_tr)
+# 3. Selected model (quadratic model) on the hold-out split, used once
+scores_train, scores_holdout = quadratic_logistic(y01_tr, tx_tr, tx[holdout])
+threshold = find_best_threshold(scores_train, y01_tr)
 
-prediction = tx[holdout] @ w >= threshold
+prediction = scores_holdout >= threshold
 truth = y01[holdout] == 1
 
 tp, fp = np.sum(prediction & truth), np.sum(prediction & ~truth)

@@ -274,3 +274,39 @@ def reg_logistic_regression(y, tx, lambda_, initial_w, max_iters, gamma):
     loss = compute_logistic_loss(y, tx, w)
 
     return w, loss
+
+
+# ---------------------------------------------------------------------------
+# Polynomial expansion (not one of the 6 required methods)
+# ---------------------------------------------------------------------------
+
+
+def build_quadratic(x_train, x_test):
+    """Degree-2 terms of the columns of x_train and x_test: squares and pairwise products.
+
+    Each column is min-max scaled on x_train before the products, then every term is
+    standardized with its x_train mean and std. Squares of binary columns are skipped
+    (equal to the column itself).
+
+    Args:
+        x_train: shape (N, K)
+        x_test: shape (M, K)
+
+    Returns:
+        q_train: shape (N, T), the T degree-2 terms of x_train
+        q_test: shape (M, T), the same terms of x_test
+    """
+    lower, scale = x_train.min(axis=0), np.ptp(x_train, axis=0)
+    scale[scale == 0] = 1
+    x_train, x_test = (x_train - lower) / scale, (x_test - lower) / scale
+
+    k = x_train.shape[1]
+    binary = [np.unique(column).size <= 2 for column in x_train.T]
+    pairs = [(i, j) for i in range(k) for j in range(i, k) if i != j or not binary[i]]
+    q_train = np.column_stack([x_train[:, i] * x_train[:, j] for i, j in pairs])
+    q_test = np.column_stack([x_test[:, i] * x_test[:, j] for i, j in pairs])
+
+    mean, std = q_train.mean(axis=0), q_train.std(axis=0)
+    std[std < 1e-12] = 1
+
+    return (q_train - mean) / std, (q_test - mean) / std
