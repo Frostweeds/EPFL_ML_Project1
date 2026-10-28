@@ -1,8 +1,9 @@
 """Kernel experiment: logistic regression on [features, Nystrom RBF features].
 
-The RBF kernel k(x, z) = exp(-g ||x - z||^2 / D) is approximated with M random landmarks C
-(Nystrom): phi(x) = k(x, C) U S^-1/2 with k(C, C) = U S U^T, so that phi(x)^T phi(z) ~ k(x, z).
-The M features phi(x), standardized, are appended to the features of features.py, then
+An exact RBF kernel needs the N x N kernel matrix (262k training rows: ~550 GB), so it is
+approximated with M random training rows C as landmarks (Nystrom):
+phi(x) = k(x, C) U S^-1/2 with k(C, C) = U S U^T, so that phi(x)^T phi(z) ~ k(x, z).
+The M standardized features phi(x) are appended to the features of features.py, then
 logistic regression (implementations.py) and the F1-maximizing threshold, as in run.py.
 
     1. train on the 80% split of cross_validation.py, F1 on the 20% hold-out split
@@ -23,7 +24,7 @@ from model import f1_score, find_best_threshold
 DATA_DIR = sys.argv[1] if len(sys.argv) > 1 else "./data"
 SEED = 1
 HOLDOUT_RATIO = 0.2
-N_LANDMARKS = 500
+N_LANDMARKS = 500  # M, number of Nystrom landmarks
 CHUNK = 20000  # rows per kernel block: k(x, C) is CHUNK x N_LANDMARKS
 
 
@@ -35,14 +36,15 @@ def rbf_kernel(x, z, g):
 
 
 def nystrom_features(tx_train, tx_test):
-    """[tx, standardized Nystrom RBF features] for both sets; landmarks, kernel scale and
-    standardization are fitted on tx_train. The bias column is not used by the kernel.
-    g = 1 / median of ||x - x'||^2 / D over random pairs of training rows."""
+    """[tx, standardized Nystrom RBF features] for both sets. Landmarks, kernel scale and
+    standardization fitted on tx_train; the bias column is not used by the kernel."""
     rng = np.random.default_rng(SEED)
     x = tx_train[:, 1:]
+    # Kernel scale: g = 1 / median of ||x - x'||^2 / D over random pairs of rows
     a, b = x[rng.choice(len(x), 2000)], x[rng.choice(len(x), 2000)]
     g = 1 / np.median(((a - b) ** 2).sum(1) / x.shape[1])
 
+    # Landmarks C and projection U S^-1/2 from the eigendecomposition k(C, C) = U S U^T
     landmarks = x[rng.choice(len(x), N_LANDMARKS, replace=False)]
     s, u = np.linalg.eigh(rbf_kernel(landmarks, landmarks, g))
     keep = s > 1e-8 * s.max()  # drop numerically null directions
@@ -73,9 +75,7 @@ def nystrom_features(tx_train, tx_test):
 
 
 def fit_logistic(tx, y01):
-    """GD on the logistic loss. Its Hessian is <= L / 4 with L the largest eigenvalue of
-    tx^T tx / N (power iteration), so gamma < 8 / L converges; gamma x steps stays ~300.
-    Returns (w, loss)."""
+    """GD on the logistic loss."""
     v = np.random.default_rng(SEED).standard_normal(tx.shape[1])
     v /= np.linalg.norm(v)
 
