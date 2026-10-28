@@ -30,6 +30,7 @@ def batch_iter(y, tx, batch_size, num_batches=1, shuffle=True):
     else:
         shuffled_y = y
         shuffled_tx = tx
+
     for batch_num in range(num_batches):
         start_index = (batch_num * batch_size) % data_size
         end_index = min(start_index + batch_size, data_size)
@@ -49,6 +50,7 @@ def compute_mse(y, tx, w):
         loss: scalar (0-dim), 0.5 * mean((y - tx @ w) ** 2)
     """
     e = y - tx.dot(w)
+
     return 1 / (2 * len(y)) * e.dot(e)
 
 
@@ -64,6 +66,7 @@ def compute_mse_gradient(y, tx, w):
         gradient: shape (D,)
     """
     e = y - tx.dot(w)
+
     return -1 / len(y) * tx.T.dot(e)
 
 
@@ -86,6 +89,7 @@ def compute_logistic_loss(y, tx, w):
     pred = sigmoid(tx.dot(w))
     a = y * np.log(pred)
     b = (1 - y) * np.log(1 - pred)
+
     return -1 / len(y) * (a + b).sum()
 
 
@@ -114,11 +118,13 @@ def mean_squared_error_gd(y, tx, initial_w, max_iters, gamma):
         loss: scalar, MSE loss corresponding to w
     """
     w = initial_w
+
     for _ in range(max_iters):
         grad = compute_mse_gradient(y, tx, w)
         w = w - gamma * grad
 
     loss = compute_mse(y, tx, w)
+
     return w, loss
 
 
@@ -142,6 +148,7 @@ def mean_squared_error_sgd(y, tx, initial_w, max_iters, gamma):
         loss: scalar, MSE loss corresponding to w
     """
     w = initial_w
+
     # Shuffle the data once, then take max_iters single-sample steps through it (cycling
     # if max_iters > N). Each step costs O(D). Calling batch_iter once per step would
     # re-shuffle and copy the whole dataset every time, i.e. O(N D) per step.
@@ -150,6 +157,7 @@ def mean_squared_error_sgd(y, tx, initial_w, max_iters, gamma):
         w = w - gamma * grad
 
     loss = compute_mse(y, tx, w)
+
     return w, loss
 
 
@@ -227,11 +235,13 @@ def logistic_regression(y, tx, initial_w, max_iters, gamma):
         loss: scalar, negative log-likelihood loss corresponding to w
     """
     w = initial_w
+
     for _ in range(max_iters):
         grad = compute_logistic_gradient(y, tx, w)
         w = w - gamma * grad
 
     loss = compute_logistic_loss(y, tx, w)
+
     return w, loss
 
 
@@ -256,9 +266,11 @@ def reg_logistic_regression(y, tx, lambda_, initial_w, max_iters, gamma):
         loss: scalar, negative log-likelihood loss corresponding to w (WITHOUT the penalty term)
     """
     w = initial_w
+
     for _ in range(max_iters):
         grad = compute_logistic_gradient(y, tx, w) + 2 * lambda_ * w
         w = w - gamma * grad
 
     loss = compute_logistic_loss(y, tx, w)
+
     return w, loss

@@ -106,74 +106,82 @@ MIN_CONTINUOUS_VALUES = 10
 
 
 def find_missing_indicator_columns(labels, data):
+    """Columns with > MISSING_INDICATOR_THRESHOLD NaN and >= MIN_ROWS NaN rows."""
     nan_count = np.isnan(data).sum(axis=0)
     selected = (nan_count / data.shape[0] > MISSING_INDICATOR_THRESHOLD) & (
         nan_count >= MIN_ROWS
     )
+
     return [labels[j] for j in np.flatnonzero(selected)]
 
 
 def add_missing_indicator_columns(labels, data, filter_names):
-    """For each column in filter_names, append a 0/1 column `column_missing` (1 = NaN)."""
+    """Append a 0/1 column `name_missing` (1 = NaN) per column in filter_names."""
     index = {name: i for (i, name) in labels.items()}
     indicators = np.isnan(data[:, [index[name] for name in filter_names]]).astype(float)
     new_names = list(labels.values()) + [f"{name}_missing" for name in filter_names]
+
     return dict(enumerate(new_names)), np.c_[data, indicators]
 
 
 def expand_category_column(labels, data, column, categories):
-    """One-hot: `column` -> one 0/1 column `column_X` per category X, in place of `column`
-    (NaN -> all 0). Returns the new labels and data."""
+    """Replace `column` by one 0/1 column `column_X` per category X (NaN -> all 0)."""
     j = {name: i for (i, name) in labels.items()}[column]
     one_hot = (data[:, j, None] == categories[None, :]).astype(float)
     names = list(labels.values())
     new_names = names[:j] + [f"{column}_{c:g}" for c in categories] + names[j + 1 :]
+
     return dict(enumerate(new_names)), np.c_[data[:, :j], one_hot, data[:, j + 1 :]]
 
 
 def output_correlation(column, y):
-    """|Correlation| feature - output, NaN rows ignored."""
+    """|Correlation| of a column with y, NaN rows ignored."""
     m = ~np.isnan(column)
+
     return abs(np.corrcoef(column[m], y[m])[0, 1])
 
 
 def find_constant_columns(labels, data):
-    """Most frequent value in >= CONSTANT_THRESHOLD of the non-NaN rows. Missing
-    indicators are rare by design and never constant."""
+    """Columns whose top value covers >= CONSTANT_THRESHOLD of the non-NaN rows."""
     constant = []
+
     for j, column in enumerate(data.T):
         values = column[~np.isnan(column)]
         top_ratio = np.unique(values, return_counts=True)[1].max() / values.size
         if top_ratio >= CONSTANT_THRESHOLD and not labels[j].endswith("_missing"):
             constant.append(labels[j])
+
     return constant
 
 
 def find_incomplete_columns(labels, data):
+    """Columns with > INCOMPLETE_THRESHOLD NaN."""
     nan_ratio_per_feature = np.isnan(data).mean(axis=0)
+
     return [
         labels[j] for j in np.flatnonzero(nan_ratio_per_feature > INCOMPLETE_THRESHOLD)
     ]
 
 
 def find_low_output_correlation_columns(labels, data, y):
+    """Columns with |correlation with y| < OUTPUT_CORRELATION_THRESHOLD."""
     correlations = np.array([output_correlation(column, y) for column in data.T])
+
     return [
         labels[j] for j in np.flatnonzero(correlations < OUTPUT_CORRELATION_THRESHOLD)
     ]
 
 
 def find_correlated_columns(labels, data, y):
-    """Feature - feature, after mean imputation: per pair with |correlation| >=
-    CORRELATION_THRESHOLD, the one less correlated with the output."""
+    """Per pair with |correlation| >= CORRELATION_THRESHOLD: the one less tied to y."""
     feature_correlation = np.abs(
         np.corrcoef(normalize_nan(data, np.nanmean(data, axis=0)), rowvar=False)
     )
     output_correlations = np.array([output_correlation(column, y) for column in data.T])
 
-    # Pairs i < j, most correlated first
     pair_i, pair_j = np.triu_indices(data.shape[1], k=1)
     pair_correlation = feature_correlation[pair_i, pair_j]
+
     correlated_indices = set()
     for k in np.argsort(pair_correlation)[::-1]:
         if pair_correlation[k] < CORRELATION_THRESHOLD:
@@ -181,29 +189,34 @@ def find_correlated_columns(labels, data, y):
         i, j = pair_i[k], pair_j[k]
         if i in correlated_indices or j in correlated_indices:
             continue
+
         if output_correlations[i] < output_correlations[j]:
             correlated_indices.add(i)
         else:
             correlated_indices.add(j)
+
     return [labels[j] for j in sorted(correlated_indices)]
 
 
 def fit_outlier_bounds(data):
-    """[OUTLIER_RATIO, 1 - OUTLIER_RATIO] quantiles of the continuous columns, infinite
-    bounds for the categorical ones."""
+    """[OUTLIER_RATIO, 1 - OUTLIER_RATIO] quantiles; infinite if categorical."""
     lower = np.nanquantile(data, OUTLIER_RATIO, axis=0)
     upper = np.nanquantile(data, 1 - OUTLIER_RATIO, axis=0)
+
     distinct_values = np.array(
         [np.unique(column[~np.isnan(column)]).size for column in data.T]
     )
     categorical = distinct_values <= MIN_CONTINUOUS_VALUES
     lower[categorical], upper[categorical] = -np.inf, np.inf
+
     return lower, upper
 
 
 def standardize(data, mean, std):
+    """(data - mean) / std, with the training mean and std."""
     return (data - mean) / std
 
 
 def add_bias(data):
+    """Prepend a column of ones."""
     return np.c_[np.ones(data.shape[0]), data]

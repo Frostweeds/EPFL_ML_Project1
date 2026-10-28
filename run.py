@@ -24,6 +24,7 @@ tx_train, tx_test = build_features(x_labels, x_train, x_test, y_train)
 
 y01 = (y_train == 1).astype(float)
 initial_w = np.zeros(tx_train.shape[1])
+
 w, _ = logistic_regression(y01, tx_train, initial_w, MAX_ITERS, GAMMA)
 threshold = find_best_threshold(tx_train.dot(w), y01)
 
