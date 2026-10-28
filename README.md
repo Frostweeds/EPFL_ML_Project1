@@ -1,89 +1,107 @@
 # ML Project 1 — Cardiovascular disease prediction
 
 Predicting MICHD (coronary heart disease / myocardial infarction) from the BRFSS 2015
-survey, with the 6 methods of `implementations.py` (numpy only). The task is described in
-`project1_description.pdf`.
+survey. The assignment is in `project1_description.pdf`.
+Training uses NumPy and the Python standard library only. The six required methods
+are least squares, ridge, MSE with GD/SGD, logistic and regularized logistic regression.
 
 ## Layout
 
 ```
-project1_description.pdf   the assignment
-report/                    the report
-implementations.py         the 6 required methods (least squares, ridge, GD, SGD, logistic, reg. logistic)
-run.py                     reproduces the submission (~2 min)
-cross_validation.py        model selection and evaluation of the report (~15 min)
-features.py                feature construction: raw rows -> model features
-normalize.py               BRFSS special codes (CDC codebook) -> NaN / 0, units
-preprocessing.py           column lists and the cleaning, encoding and selection steps
-model.py                   F1 score and F1-maximizing threshold
-helpers.py                 CSV loading, submission writer
+implementations.py         the 6 required methods, unchanged
+run.py                     trains the final quadratic model and writes predictions
+final_validation.py        quadratic/cubic CV and final evaluation with/without HAREHAB1
+cross_validation.py        original six-method and regularization comparisons
+polynomial.py              selected polynomial features and calls to the homework GD methods
+features.py                raw data -> model features
+normalize.py               BRFSS special codes and units
+preprocessing.py           cleaning, encoding, filtering and scaling
+model.py                   F1 score and decision threshold selection
+helpers.py                 CSV loading and submission writer
+experiments/results/final_models/   current metrics and LaTeX tables
+notebooks/final_validation.ipynb    editable display of the saved tables
 ```
 
 ## Usage
 
-Requires Python 3 and numpy (`pip install numpy`).
+Requires Python 3 and NumPy (`pip install numpy`). Download `x_train.csv`,
+`y_train.csv` and `x_test.csv` from AIcrowd into `data/`, or pass another directory.
+Run from the repository root:
 
-1. Download `x_train.csv`, `y_train.csv` and `x_test.csv` from AIcrowd into a folder,
-   by default `data/` at the root of the repository.
-2. Run from the repository root, optionally passing that folder (default `./data`):
-
-```
-python run.py [data_dir]               # writes submission.csv
-python cross_validation.py [data_dir]  # model comparison, lambda curve, hold-out evaluation
+```bash
+python run.py data --output submission.csv
+python final_validation.py data
 ```
 
-## Pipeline
+The first command trains on all labeled rows and writes test predictions with columns
+`Id,Prediction` and labels `-1/+1`. The second runs the complete comparison and saves
+`experiments/results/final_models/results.json` and `tables.tex`. Open
+`notebooks/final_validation.ipynb` to view the tables without retraining.
 
-### Data preparation and features (`features.py`)
+The evaluation can also be run in separate stages:
 
-Every statistic (means, quantiles, correlations, categories) is fitted on `x_train` only
-and reused unchanged on `x_test`.
+```bash
+python final_validation.py data --fold 1   # repeat with --fold 2 and --fold 3
+python final_validation.py data --holdout
+python final_validation.py --collect
+```
 
-1. **Special codes and units** (`normalize.py`): "don't know / refused / missing" answers
-   (e.g. 7, 9, 77, 99) become NaN and "none / never" answers (e.g. 88 days) become 0, per
-   column, from the BRFSS 2015 codebook. Weights are converted to kg, heights to cm and
-   frequencies (e.g. 203 = 3 per week) to times per day.
-2. **Identifiers dropped**: state, interview date, sequence number and survey-design
-   columns (weights, questionnaire version).
-3. **Missing indicators**: a 0/1 column `X_missing` for each column with more than 5% NaN
-   (and at least 100 NaN rows).
-4. **Constant / empty columns dropped**: one value in at least 99% of the rows, or more than
-   99% NaN; plus `HAREHAB1_missing`, which leaks the target (cardiac rehabilitation is only
-   asked after a heart attack).
-5. **One-hot encoding** of the nominal columns (`CATEGORY_COLUMNS` in `preprocessing.py`:
-   marital status, employment, diabetes, ...), one 0/1 column per category.
-6. **Outlier clipping**: continuous columns (more than 10 distinct values) clipped to their
-   1% and 99% quantiles.
-7. **Feature selection**: drop the columns with |correlation with y| < 0.01, then, for every
-   pair of features with |correlation| >= 0.95, the one less correlated with y.
-8. **Scaling**: NaN -> training mean, standardization, bias column. 356 features in the end.
+`python run.py data --holdout` evaluates only the final model.
+`python cross_validation.py data` reruns the original method comparisons.
+All commands above work from the raw CSVs; a local preprocessing cache is optional
+through `--prepared-dir` for `run.py` and `final_validation.py`.
 
-### Model (`run.py`)
+## Data preparation
 
-Logistic regression (`logistic_regression`, lambda = 0): gradient descent from w = 0,
-gamma = 1, 300 steps, on the whole training set. The positive class is rare (8.8%), so the
-decision threshold on x^T w is not 0 but the one maximizing F1 on the training rows, among
-100 score quantiles (`model.py`). Predictions are written in {-1, 1}.
+`features.py` preserves the original preprocessing pipeline. Statistics are fitted
+on the labeled dataset and reused for the competition test set:
 
-### Model selection and evaluation (`cross_validation.py`)
+1. Normalize missing-answer codes and units using `normalize.py`.
+2. Remove identifiers and survey-design columns.
+3. Add missing indicators for columns with over 5% missing values and at least 100 missing rows.
+4. Remove columns that are over 99% missing or at least 99% constant, and remove the HAREHAB1 leak indicator.
+5. One-hot encode nominal features and clip continuous inputs at their 1% and 99% quantiles.
+6. Remove features with absolute target correlation below 0.01; for pairs correlated at least 0.95, retain the feature more correlated with the target.
+7. Impute training means, standardize, and add a bias column: 356 columns including bias.
 
-- Fixed 80 / 20 split (seed 1); the 20% hold-out split is used once, for the selected model.
-- 3-fold cross-validation on the 80% split. The threshold is always chosen on the training
-  folds, then applied unchanged to the held-out fold.
+## Final model
 
-1. The 6 methods with fixed hyperparameters, compared by CV F1.
-2. CV F1 as a function of lambda for ridge regression and regularized logistic regression
-   (lambda from 0 to 10): regularization does not help, so the model uses lambda = 0.
-3. The selected model on the hold-out split.
+Keep all original linear features. Fit preliminary logistic regression for 300 GD
+steps at `gamma = 1`, then rank inputs by coefficient magnitude multiplied by their
+training standard deviation. Select the smallest subset covering 50% of the total
+magnitude, excluding the bias, and add its squares and pairwise products. Rescale
+selected inputs using training min–max values before expansion, then standardize
+all non-bias columns using training statistics. Redundant powers of discrete inputs
+are omitted.
 
-| method | 3-fold CV F1 |
-|---|---|
-| least squares | 0.417 |
-| ridge regression (lambda = 1e-3) | 0.418 |
-| GD on the MSE (300 steps, gamma = 1 / L) | 0.417 |
-| SGD on the MSE (10 epochs, gamma = 1e-5) | 0.417 |
-| SGD on the MSE (1 epoch, gamma = 1e-4) | 0.410 |
-| **logistic regression (300 steps, gamma = 1)** | **0.430** |
-| regularized logistic regression (lambda = 1e-4, 300 steps, gamma = 1) | 0.431 |
+The final classifier is logistic regression with `lambda = 1e-3`. Initialize from
+a regularized linear model trained for 1,000 steps at `gamma = 1`, then run 5,000
+steps at `gamma = 0.2` on the expanded matrix. These are the unchanged homework GD
+functions in `implementations.py`; the penalty is `lambda * sum(w**2)`, including
+bias. Training uses fixed iteration counts and records the final gradient as a
+diagnostic. Arrays remain float64; the entry points default to four BLAS threads.
 
-Selected model on the hold-out split: F1 0.428.
+Select the threshold maximizing training F1 among 100 score quantiles and apply it
+unchanged to evaluation or test rows. `run.py` repeats the full procedure on all
+labeled rows; its training metadata is saved in
+`experiments/results/final_models/final_training.json`.
+
+## Evaluation
+
+Use the original seed-1 80/20 split and three folds within the 80% training portion.
+Baseline preprocessing precedes this split, as in the earlier experiments; feature
+selection, polynomial scaling, model fitting and threshold selection use each fold's
+training rows. The 20% holdout has been evaluated previously.
+
+`final_validation.py` produces two tables:
+
+- Degrees 2 and 3, each with `lambda = 0` and `1e-3`: mean training F1, CV F1 with
+  fold standard deviation, and CV F1 at score threshold zero. Cubic terms use only
+  the ten highest-ranked inputs and retain all existing linear and quadratic terms.
+- The regularized quadratic model with and without HAREHAB1: three-fold CV and final
+  training/holdout F1, precision, recall, accuracy and log loss. Confusion counts,
+  selected inputs, thresholds and gradients are included in the saved JSON.
+
+The HAREHAB1 comparison appends the raw answered indicator, including refused/unknown
+answers. It remains separate because this question reveals information about the
+target; the default submission excludes it.

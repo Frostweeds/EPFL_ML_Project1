@@ -1,0 +1,29 @@
+\begin{table}[htbp]
+\centering
+\caption{Polynomial logistic regression.}
+\label{tab:polynomial}
+\begin{tabular}{ccccc}
+\hline
+Degree & $\lambda$ & F1 (CV) & F1 train & F1 ($t=0$) \\
+\hline
+2 & $0$ & $0.434 \pm 0.005$ & 0.447 & 0.233 \\
+\textbf{2} & $\mathbf{10^{-3}}$ & $\mathbf{0.435 \pm 0.006}$ & \textbf{0.446} & \textbf{0.235} \\
+3 & $0$ & $0.431 \pm 0.006$ & 0.448 & 0.234 \\
+3 & $10^{-3}$ & $0.436 \pm 0.006$ & 0.447 & 0.234 \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption{Selected model: 3-fold CV F1 on the 80\% split and metrics on the 20\% hold-out split.}
+\label{tab:eval}
+\begin{tabular}{lccccc}
+\hline
+ & F1 (CV) & F1 & Prec. & Rec. & Acc. \\
+\hline
+Final model & $0.435 \pm 0.006$ & 0.434 & 0.366 & 0.535 & 0.876 \\
++ \texttt{HAREHAB1} & $0.443 \pm 0.007$ & 0.439 & 0.383 & 0.514 & 0.883 \\
+\hline
+\end{tabular}
+\end{table}

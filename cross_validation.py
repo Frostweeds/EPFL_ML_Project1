@@ -2,12 +2,12 @@
 
     1. the 6 methods of implementations.py, 3-fold CV F1
     2. F1 vs the regularization lambda (ridge, regularized logistic), 3-fold CV
-    3. the selected model (logistic regression, lambda = 0) on the 20% hold-out split
+    3. the selected quadratic logistic model (lambda = 1e-3) on the 20% hold-out split
 
 Protocol: fixed 80 / 20 train / hold-out split; the 3 folds are taken in the 80% split, the
-hold-out split is used once, in 3. The decision threshold is always chosen on the training
+hold-out split is evaluated in 3. The decision threshold is always chosen on the training
 rows (F1-maximizing), then applied unchanged to the held-out rows.
-Usage: python cross_validation.py [data_dir]   (default: ./data, ~15 minutes)
+Usage: python cross_validation.py [data_dir]   (default: ./data)
 """
 
 import sys
@@ -25,6 +25,7 @@ from implementations import (
     ridge_regression,
 )
 from model import f1_score, find_best_threshold
+from polynomial import train_quadratic
 
 DATA_DIR = sys.argv[1] if len(sys.argv) > 1 else "./data"
 SEED = 1
@@ -148,10 +149,9 @@ for lambda_ in LAMBDAS:
         flush=True,
     )
 
-# 3. Selected model on the hold-out split, used once
-w, _ = logistic_regression(y01_tr, tx_tr, zeros, 300, 1.0)
-threshold = find_best_threshold(tx_tr @ w, y01_tr)
-prediction = tx[holdout] @ w >= threshold
+# 3. Quadratic model evaluated by final_validation.py
+_, holdout_scores, info = train_quadratic(y01_tr, tx_tr, tx[holdout])
+prediction = holdout_scores >= info["threshold"]
 truth = y01[holdout] == 1
 tp, fp = np.sum(prediction & truth), np.sum(prediction & ~truth)
 fn, tn = np.sum(~prediction & truth), np.sum(~prediction & ~truth)

@@ -37,8 +37,8 @@ def drop(labels, x_train, x_test, filter_names):
     return new_labels, x_train[:, kept], x_test[:, kept]
 
 
-def build_features(x_labels, x_train, x_test, y_train):
-    """Returns tx_train and tx_test, bias column first."""
+def build_features(x_labels, x_train, x_test, y_train, return_names=False):
+    """Returns tx_train and tx_test, bias first; optionally also the feature names."""
     # Cleaning
     labels = x_labels
     x_tr = normalize_codes(labels, x_train)
@@ -79,4 +79,14 @@ def build_features(x_labels, x_train, x_test, y_train):
     mean, std = np.nanmean(x_tr, axis=0), np.nanstd(x_tr, axis=0)
     tx_train = add_bias(standardize(normalize_nan(x_tr, mean), mean, std))
     tx_test = add_bias(standardize(normalize_nan(x_te, mean), mean, std))
+    if return_names:
+        return tx_train, tx_test, np.array(["bias", *labels.values()])
     return tx_train, tx_test
+
+
+def add_harehab1(tx, tx_test, raw_train, raw_test):
+    """Append the raw answered indicator for the separate HAREHAB1 comparison."""
+    answered, answered_test = (~np.isnan(raw_train)).astype(float), (~np.isnan(raw_test)).astype(float)
+    mean, std = answered.mean(), answered.std()
+    std = std if std > 1e-12 else 1.0
+    return np.c_[tx, (answered - mean) / std], np.c_[tx_test, (answered_test - mean) / std]

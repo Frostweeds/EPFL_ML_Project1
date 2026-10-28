@@ -31,6 +31,14 @@ def load_csv_data(data_path):
     return x_train[:, 1:], x_test[:, 1:], y_train, x_test[:, 0].astype(int)
 
 
+def load_harehab1(data_path):
+    """Raw HAREHAB1 answers, before special codes are converted to NaN."""
+    column = next(i + 1 for i, name in load_csv_data_labels(data_path).items() if name == "HAREHAB1")
+    return tuple(np.genfromtxt(os.path.join(data_path, name), delimiter=",",
+                              skip_header=1, usecols=column)
+                 for name in ("x_train.csv", "x_test.csv"))
+
+
 def create_csv_submission(ids, y_pred, name):
     """Columns Id and Prediction, predictions in {-1, 1}."""
     with open(name, "w", newline="") as csvfile:

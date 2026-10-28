@@ -16,3 +16,14 @@ report/*.bbl
 report/*.synctex.gz
 
 .DS_Store
+
+# Keep local explorations; publish only the current evaluation artifacts.
+experiments/*
+!experiments/results/
+experiments/results/*
+!experiments/results/final_models/
+experiments/results/final_models/*
+!experiments/results/final_models/*.json
+!experiments/results/final_models/*.tex
+notebooks/*
+!notebooks/final_validation.ipynb
