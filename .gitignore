@@ -1,19 +1,11 @@
-# Data (large, must be downloaded from AIcrowd, never committed)
-data/*.csv
-data/*.zip
+# Data (download from AIcrowd, never committed)
+data/
 *.csv
-!report/**/*.csv
-
-# Local copy of the course's grading tests (advised not to commit them,
-# see grading_tests/INSTRUCTIONS.md - keep locally, pull fresh when needed)
-grading_tests/
 
 # Python
 __pycache__/
 *.pyc
-.ipynb_checkpoints/
 .venv/
-venv/
 
 # LaTeX build artifacts
 report/*.aux
@@ -23,5 +15,4 @@ report/*.blg
 report/*.bbl
 report/*.synctex.gz
 
-# OS
 .DS_Store

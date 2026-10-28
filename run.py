@@ -1,49 +1,31 @@
-"""Reproducibility script for EPFL ML Project 1.
-
-Running `python run.py` must regenerate exactly the .csv submission used for
-the team's best AIcrowd score (see the project statement, Step 4).
-
-This is a thin script: it should just load data, apply the chosen
-preprocessing/feature engineering, train the final model using functions
-from implementations.py, and write the submission file. Keep the actual
-exploration/model-selection work in notebooks/project1.ipynb; only the
-final, decided pipeline belongs here.
+"""Reproduce the submission of the report: features (features.py), logistic regression
+(implementations.py), F1-maximizing threshold.
+Usage: python run.py [data_dir]   (default: ./data, ~2 minutes)
 """
+
+import sys
 
 import numpy as np
 
-from helpers import load_csv_data, create_csv_submission
-import implementations as impl
+from features import build_features
+from helpers import create_csv_submission, load_csv_data, load_csv_data_labels
+from implementations import logistic_regression
+from model import find_best_threshold
 
-DATA_DIR = "data"
-OUTPUT_PATH = "submission.csv"
+DATA_DIR = sys.argv[1] if len(sys.argv) > 1 else "./data"
 
+# Model selection (cross_validation.py): lambda = 0, gradient descent converged at 300 steps
+MAX_ITERS = 300
+GAMMA = 1.0
 
-def build_features(x):
-    """Apply the final feature engineering / preprocessing pipeline.
+x_labels = load_csv_data_labels(DATA_DIR)
+x_train, x_test, y_train, test_ids = load_csv_data(DATA_DIR)
+tx_train, tx_test = build_features(x_labels, x_train, x_test, y_train)
 
-    Must be applied identically to x_train and x_test.
-    """
-    # TODO: cleaning, scaling, feature construction, add bias column, etc.
-    raise NotImplementedError
+y01 = (y_train == 1).astype(float)
+initial_w = np.zeros(tx_train.shape[1])
+w, _ = logistic_regression(y01, tx_train, initial_w, MAX_ITERS, GAMMA)
+threshold = find_best_threshold(tx_train.dot(w), y01)
 
-
-def main():
-    x_train, x_test, y_train, train_ids, test_ids = load_csv_data(DATA_DIR)
-
-    tx_train = build_features(x_train)
-    tx_test = build_features(x_test)
-
-    # TODO: replace with the final chosen method + hyperparameters
-    # e.g. w, loss = impl.ridge_regression(y_train, tx_train, lambda_=...)
-    w, loss = None, None
-    raise NotImplementedError("Fill in the final training call above.")
-
-    y_pred = tx_test @ w
-    y_pred = np.where(y_pred >= 0, 1, -1)
-
-    create_csv_submission(test_ids, y_pred, OUTPUT_PATH)
-
-
-if __name__ == "__main__":
-    main()
+y_pred = np.where(tx_test.dot(w) >= threshold, 1, -1)
+create_csv_submission(test_ids, y_pred, "submission.csv")

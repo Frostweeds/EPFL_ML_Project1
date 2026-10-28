@@ -12,30 +12,30 @@ project statement: no scikit-learn, no pandas, etc.).
 
 import numpy as np
 
-from helpers import batch_iter
-
 
 # ---------------------------------------------------------------------------
 # Shared helpers
 # ---------------------------------------------------------------------------
-def build_poly(x, degree):
-    """polynomial basis functions for input data x, for j=0 up to j=degree.
+def batch_iter(y, tx, batch_size, num_batches=1, shuffle=True):
+    """Generate a mini-batch iterator for (y, tx).
 
-    Args:
-        x: numpy array of shape (N,), N is the number of samples.
-        degree: integer.
-
-    Returns:
-        poly: numpy array of shape (N,d+1)
-
-    >>> build_poly(np.array([0.0, 1.5]), 2)
-    array([[1.  , 0.  , 0.  ],
-           [1.  , 1.5 , 2.25]])
+    Yields `num_batches` batches of size `batch_size` from the shuffled
+    (or unshuffled) dataset. For SGD in this project, use batch_size=1.
     """
-    def extend(sample):
-        return np.array([ sample ** i for i in range(0, degree + 1)])
+    data_size = len(y)
+    if shuffle:
+        shuffle_indices = np.random.permutation(np.arange(data_size))
+        shuffled_y = y[shuffle_indices]
+        shuffled_tx = tx[shuffle_indices]
+    else:
+        shuffled_y = y
+        shuffled_tx = tx
+    for batch_num in range(num_batches):
+        start_index = (batch_num * batch_size) % data_size
+        end_index = min(start_index + batch_size, data_size)
+        if end_index > start_index:
+            yield shuffled_y[start_index:end_index], shuffled_tx[start_index:end_index]
 
-    return np.array([extend(s) for s in x])
 
 def compute_mse(y, tx, w):
     """Compute the mean squared error loss, with the 0.5 factor from the course notes.
@@ -68,9 +68,8 @@ def compute_mse_gradient(y, tx, w):
 
 
 def sigmoid(t):
-    """Numerically stable sigmoid, applied elementwise."""
-    # TODO: implement
-    raise NotImplementedError
+    """Sigmoid, applied elementwise."""
+    return 1 / (1 + np.exp(-t))
 
 
 def compute_logistic_loss(y, tx, w):
@@ -84,14 +83,15 @@ def compute_logistic_loss(y, tx, w):
     Returns:
         loss: scalar (0-dim)
     """
-    # TODO: implement
-    raise NotImplementedError
+    pred = sigmoid(tx.dot(w))
+    a = y * np.log(pred)
+    b = (1 - y) * np.log(1 - pred)
+    return -1 / len(y) * (a + b).sum()
 
 
 def compute_logistic_gradient(y, tx, w):
     """Compute the gradient of the logistic regression loss w.r.t. w."""
-    # TODO: implement
-    raise NotImplementedError
+    return 1 / len(y) * tx.T.dot(sigmoid(tx.dot(w)) - y)
 
 
 # ---------------------------------------------------------------------------
@@ -142,10 +142,12 @@ def mean_squared_error_sgd(y, tx, initial_w, max_iters, gamma):
         loss: scalar, MSE loss corresponding to w
     """
     w = initial_w
-    for _ in range(max_iters):
-        for batch_y, batch_tx in batch_iter(y, tx, batch_size=1, num_batches=1):
-            grad = compute_mse_gradient(batch_y, batch_tx, w)
-            w = w - gamma * grad
+    # Shuffle the data once, then take max_iters single-sample steps through it (cycling
+    # if max_iters > N). Each step costs O(D). Calling batch_iter once per step would
+    # re-shuffle and copy the whole dataset every time, i.e. O(N D) per step.
+    for batch_y, batch_tx in batch_iter(y, tx, batch_size=1, num_batches=max_iters):
+        grad = compute_mse_gradient(batch_y, batch_tx, w)
+        w = w - gamma * grad
 
     loss = compute_mse(y, tx, w)
     return w, loss
@@ -169,11 +171,10 @@ def least_squares(y, tx):
         w: shape (D,), optimal weights
         loss: scalar, MSE loss corresponding to w
     """
-    # TODO: solve tx.T @ tx @ w = tx.T @ y (e.g. via np.linalg.solve), then compute loss
     tx_T = tx.transpose()
     tx_T_tx = tx_T.dot(tx)
 
-    w_optimal = np.linalg.solve(tx_T_tx, tx_T.dot(y))
+    w_optimal = np.linalg.pinv(tx_T_tx).dot(tx_T.dot(y))
     mse = compute_mse(y, tx, w_optimal)
 
     return w_optimal, mse
@@ -226,8 +227,12 @@ def logistic_regression(y, tx, initial_w, max_iters, gamma):
         loss: scalar, negative log-likelihood loss corresponding to w
     """
     w = initial_w
-    # TODO: implement max_iters GD updates using compute_logistic_gradient
-    raise NotImplementedError
+    for _ in range(max_iters):
+        grad = compute_logistic_gradient(y, tx, w)
+        w = w - gamma * grad
+
+    loss = compute_logistic_loss(y, tx, w)
+    return w, loss
 
 
 # ---------------------------------------------------------------------------
@@ -251,8 +256,9 @@ def reg_logistic_regression(y, tx, lambda_, initial_w, max_iters, gamma):
         loss: scalar, negative log-likelihood loss corresponding to w (WITHOUT the penalty term)
     """
     w = initial_w
-    # TODO: implement max_iters GD updates on the regularized objective, e.g.
-    #   grad = compute_logistic_gradient(y, tx, w) + 2 * lambda_ * w
-    #   w = w - gamma * grad
-    # but report compute_logistic_loss(y, tx, w) (unregularized) as the loss.
-    raise NotImplementedError
+    for _ in range(max_iters):
+        grad = compute_logistic_gradient(y, tx, w) + 2 * lambda_ * w
+        w = w - gamma * grad
+
+    loss = compute_logistic_loss(y, tx, w)
+    return w, loss
