@@ -8,7 +8,7 @@ logistic regression (implementations.py) and the F1-maximizing threshold, as in 
     1. train on the 80% split of cross_validation.py, F1 on the 20% hold-out split
     2. retrain on the whole training set, write submission_kernel.csv
 
-Usage: python run_experiment.py [data_dir]   (default: ./data, ~6 minutes, ~8 GB of memory)
+Usage: python run_experiment.py [data_dir]   (default: ./data, ~6 minutes)
 """
 
 import sys
