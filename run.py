@@ -10,9 +10,11 @@ import numpy as np
 
 from features import build_features
 from helpers import create_csv_submission, load_csv_data, load_csv_data_labels
-from model import find_best_threshold, quadratic_logistic
+from model import SEED, find_best_threshold, quadratic_logistic
 
 DATA_DIR = sys.argv[1] if len(sys.argv) > 1 else "./data"
+
+np.random.seed(SEED)  # nothing random in this pipeline: GD from w = 0
 
 x_labels = load_csv_data_labels(DATA_DIR)
 x_train, x_test, y_train, test_ids = load_csv_data(DATA_DIR)

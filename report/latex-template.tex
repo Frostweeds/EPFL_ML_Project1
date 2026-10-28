@@ -1,0 +1,151 @@
+\documentclass[10pt,conference,compsocconf]{IEEEtran}
+\raggedbottom
+
+\usepackage{hyperref}
+\usepackage{graphicx}	% For figure environment
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{float}
+\usepackage{amsmath,amssymb}
+\usepackage{xcolor}
+
+\begin{document}
+\title{Machine learning (CS-433) - Project 1}
+
+\author{
+  Romain Jufer, Léo Catteau, Lilian Welschinger \\
+  \textit{Department of Computer Science, EPFL, Switzerland}
+}
+
+\maketitle
+
+\section{Data Processing}
+
+Our initial dataset consists of 328,135 samples encoding 321 features. Amongst them there are 28,975 positive entries (~9\%), which indicate an important class imbalance. Additionally, the dataset contains identifiers, survey questions and health indicators
+resulting in a very heterogeneous feature space. We also note that some features have dependencies (e.g. one question depends on a positive answer to a previous question), some features can contain entries with different scales
+(e.g. height in feet and inches or in centimeters), and some missing entries may be indicated by special codes defined in the BRFSS codebook. We thus proceed by implementing a data processing pipeline to prepare the data for training. \\
+
+We decompose the processing of our training data into two phases. The first phase cleans the features to ensure consistent
+units (e.g. weight in kg), replacing BRFSS codes with NaN or meaningful values, removing identifiers and highly incomplete data. We also decompose features with a high percentage
+of missing values into a pair of features which consists of a 0/1 categorical feature indicating the existence or not of the value and a feature containing the original magnitude. \\
+
+As part of this process we identified a particularly high correlation to the output for the feature "HAREHAB1". After further inspection 
+the feature is defined in the CDC codebook as follows.
+
+\vspace{0.5em}
+\begin{quote}
+  \texttt{HAREHAB1}: \emph{``Following your heart attack, did you go to any kind of
+  outpatient rehabilitation? This is sometimes called `rehab.'\,''}
+\end{quote}
+\vspace{0.5em}
+
+It is clear that a patient that answers yes to this question had a heart attack, and thus we filter it out as well to avoid contamination. \\
+
+The resulting data set is then further processed to build the feature space for training. We use one-hot encoding for k-value categorical features because our linear model cannot use code as ordinal values and we clip outliers. We also
+filter out duplicated features using the correlation matrix, and remove features that have almost no correlation with the output.  
+Finally, we replace NaN with the training mean before normalizing each feature to be zero mean, unit variance.
+
+Our final dataset contains 355 features plus a bias column. None has a Pearson correlation with the target above $|r| = 0.25$ (maximum 0.249, GENHLTH), and the median $|r|$ is 0.027.
+
+\section{Model Selection}
+
+We hold out a random 20\% of the training set (seed 1) for a final check and run 3-fold cross-validation on the remaining 80\%. In each fold, the weights and the decision threshold (maximizing F1 over 100 score quantiles) are fit on the training folds only, and the F1 is measured on the held-out fold.
+
+\begin{table}[htbp]
+\centering
+\caption{F1 of the six methods (3-fold CV, mean $\pm$ std). The decision threshold is tuned on the training folds, except in the last column (default threshold $T=0.5$).}
+\label{tab:baselines}
+\begin{tabular}{lccc}
+\hline
+Method & F1 (CV) & F1 train & F1 ($T=0.5$) \\
+\hline
+Least squares & $0.417 \pm 0.006$ & 0.421 & 0.092 \\
+Ridge ($\lambda=10^{-3}$) & $0.418 \pm 0.006$ & 0.421 & 0.092 \\
+MSE GD ($\gamma=1/L$) & $0.417 \pm 0.006$ & 0.421 & 0.090 \\
+MSE SGD (10 epochs) & $0.417 \pm 0.006$ & 0.420 & 0.091 \\
+MSE SGD (1 epoch) & $0.410 \pm 0.003$ & 0.413 & 0.090 \\
+\textbf{Logistic} & $0.430 \pm 0.005$ & 0.437 & 0.239 \\
+Reg.\ logistic ($\lambda=10^{-4}$) & $0.431 \pm 0.005$ & 0.437 & 0.237 \\
+\hline
+\end{tabular}
+\end{table}
+
+Logistic regression is the best method on each of the three folds ($+0.012$ over the square-loss methods), as expected since the square loss also penalizes confidently correct predictions. Tuning the threshold $T\in[0,1]$ matters more than the choice of model: at $T=0.5$, the F1 of logistic regression drops from $0.430$ to $0.239$. For calibrated probabilities, the F1-optimal threshold is $F_1^*/2$~\cite{lipton2014thresholdingclassifiersmaximizef1}, i.e.\ $0.437/2 \approx 0.22$ here; the thresholds selected on the training folds, $T = 0.207$, $0.195$ and $0.204$, are close to this value, the small gap being explained by imperfect calibration and the coarse threshold grid. \\
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\columnwidth]{images/lambda_curve_experiment_5.pdf}
+  \caption{3-fold CV F1 vs.\ regularization $\lambda$ (band: $\pm$ std over folds; dashed: training folds).}
+  \label{fig:lambda}
+\end{figure}
+
+\textbf{Why regularization cannot help.}
+Assume (i) the square loss, (ii) a fixed design matrix $X \in \mathbb{R}^{N \times D}$ of full rank, and (iii) labels $y = f + \varepsilon$ with i.i.d.\ noise, $\mathbb{E}[\varepsilon] = 0$, $\operatorname{Cov}(\varepsilon) = \sigma^2 I_N$. Then the variance term of the least-squares predictor, averaged over the training points, is
+
+\begin{equation}
+  \frac{1}{N} \sum_{n=1}^{N} \operatorname{Var}\big(x_n^\top \hat{w}\big)
+  = \frac{\sigma^2}{N} \operatorname{tr}\big(X (X^\top X)^{-1} X^\top\big)
+  = \sigma^2 \, \frac{D}{N}
+  \label{eq:variance}
+\end{equation}
+
+With $D = 356$ and $N \approx 1.75 \times 10^5$ rows per training fold, $D/N \approx 0.002$: the variance is negligible, so the error is dominated by the bias, which regularization can only increase.
+Our setting departs from these assumptions (binary labels, logistic loss, rank-deficient $X$), but the experiments agree with this prediction (Fig.~\ref{fig:lambda}): for both ridge and logistic regression, the CV F1 is flat for $\lambda \le 10^{-3}$ and only decreases beyond, and training and CV scores stay within one standard deviation of each other. We therefore use $\lambda = 0$. \\
+
+\textbf{Polynomial regression.} To make the model more expressive and the decision boundary nonlinear, we explore polynomial regression. Given the number of features in the original dataset, the amount of created features can grow rapidly, and we thus restrict the expansion to squares and pairwise products of a selected subset of the inputs. To select this subset, we scale the previously trained linear model's weights by each feature's standard deviation and rank their magnitudes. We retain the highest-ranked features accounting for 50\% of the total standardized weight magnitude, using this as a heuristic to select the most important features according to the trained logistic regression model. With $\lambda=10^{-3}$, the quadratic polynomial logistic regression improves on the previous model (Table~\ref{tab:polynomial}). Adding cubic terms again requires restricting the number of features in a similar procedure before larger degree polynomial expansion, and does not lead to measurable F1 improvement. 
+\newline
+
+\begin{table}[htbp]
+\centering
+\caption{Polynomial logistic regression.}
+\label{tab:polynomial}
+\begin{tabular}{ccccc}
+\hline
+Degree & $\lambda$ & F1 (CV) & F1 train  \\
+\hline
+\textbf{2} & $\mathbf{10^{-3}}$ & $\mathbf{0.435 \pm 0.006}$ & \textbf{0.446}  \\
+% 3 & $0$ & $0.431 \pm 0.006$ & 0.448 & 0.234 \\
+% 3 & $10^{-3}$ & $0.436 \pm 0.006$ & 0.447 & 0.234 \\
+\hline
+\end{tabular}
+\end{table}
+
+\textbf{Kernels.} To avoid restricting the expansion to a subset of the inputs,
+we also tried kernels (polynomial and RBF), which use all features without
+building the products explicitly. Exact kernel ridge regression needs the
+$n \times n$ kernel matrix, so we could only train it on $8000$ rows per fold, and we observe overfitting (training F1 up to $0.95$) and reaches at best a CV F1 of $0.397$.
+To use all rows, we approximate the RBF kernel with the Nyström features
+to keep the computation tractable: F1 $= 0.432 \pm 0.005$ (CV),
+on par with the explicit quadratic terms (Table~\ref{tab:polynomial}).
+
+We retain quadratic logistic regression ($\lambda = 10^{-3}$), the simplest best method on every fold, with the decision threshold tuned to maximize F1 on the training data and expansion inputs selected by their standardized weights in the linear model. The final model is retrained with this procedure on the full training set to produce the submission.
+
+
+\section{Evaluation}
+We evaluate the selected quadratic logistic regression model ($\lambda = 10^{-3}$) once on the 20\% hold-out split, after training it and tuning its threshold on the remaining 80\% (Table~\ref{tab:eval}).
+
+\begin{table}[htbp]
+\centering
+\caption{Quadratic logistic regression (selected model): 3-fold CV F1 on the 80\% split and metrics on the 20\% hold-out split.}
+\label{tab:eval}
+\begin{tabular}{lccccc}
+\hline
+ & F1 (CV) & F1 & Prec. & Rec. & Acc. \\
+\hline
+Quadratic model & $0.435 \pm 0.006$ & 0.433 & 0.365 & 0.534 & 0.876 \\
++ \texttt{HAREHAB1} & $0.443 \pm 0.007$ & 0.439 & 0.383 & 0.514 & 0.883 \\
+\hline
+\end{tabular}
+\end{table}
+
+The hold-out F1 is within one standard deviation of the CV estimate, so the many choices made on the CV folds did not noticeably overfit them. The quadratic model detects 53\% of the MICHD cases (recall) and 36\% of its alerts are correct (precision). Its accuracy (0.876) is below that of always predicting negative (0.911): the F1-optimal threshold trades false positives for recall, which is why accuracy is not a meaningful metric here.
+
+On the AIcrowd test set, the quadratic model obtains F1 $= 0.447$ (accuracy 0.879), above the linear logistic model ($0.441$) and slightly above its hold-out F1.
+
+\section{Conclusion}
+All the models we tried, from linear regression to polynomial features and kernels, reach a CV F1 between $0.41$ and $0.44$; the final quadratic model reaches $0.447$ on the AIcrowd test set. With $D/N \approx 0.002$, the error is dominated by bias rather than variance, and richer models barely reduce it: the limit seems to come from the information in the survey answers rather than from the model. Two other attempts did not help: class reweighting in the loss, once the threshold is tuned, and $k$-NN on a few principal components.
+
+\bibliographystyle{IEEEtran}
+\bibliography{literature}
+
+\end{document}

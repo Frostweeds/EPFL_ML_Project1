@@ -19,10 +19,9 @@ import numpy as np
 from features import build_features
 from helpers import create_csv_submission, load_csv_data, load_csv_data_labels
 from implementations import logistic_regression
-from model import f1_score, find_best_threshold
+from model import SEED, f1_score, find_best_threshold
 
 DATA_DIR = sys.argv[1] if len(sys.argv) > 1 else "./data"
-SEED = 1
 HOLDOUT_RATIO = 0.2
 N_LANDMARKS = 500  # M, number of Nystrom landmarks
 CHUNK = 20000  # rows per kernel block: k(x, C) is CHUNK x N_LANDMARKS
@@ -97,6 +96,8 @@ def kernel_logistic(tx_train, y01, tx_test):
 
     return ftx_train @ w, ftx_test @ w
 
+
+np.random.seed(SEED)
 
 x_labels = load_csv_data_labels(DATA_DIR)
 x_train, x_test, y_train, test_ids = load_csv_data(DATA_DIR)

@@ -100,6 +100,7 @@ are written in {-1, 1}.
 | SGD on the MSE (1 epoch, gamma = 1e-4) | 0.410 |
 | logistic regression (300 steps, gamma = 1) | 0.430 |
 | regularized logistic regression (lambda = 1e-4, 300 steps, gamma = 1) | 0.431 |
+| **quadratic model** | **0.435** |
 
 On the hold-out split:
 
@@ -110,6 +111,9 @@ On the hold-out split:
 | **quadratic model (squares and products)** | **0.444** | **0.433** |
 
 The squares alone add little; the pairwise products carry most of the gain.
+
+On the AIcrowd test set, the quadratic model (`run.py`) obtains F1 0.447, accuracy 0.879
+([submission #338136](https://www.aicrowd.com/88604ad3-1c85-4f8f-ab5e-4506c4816587)).
 
 ### Kernel experiment (`run_experiment.py`)
 

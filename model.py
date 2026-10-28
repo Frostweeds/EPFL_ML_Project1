@@ -10,6 +10,10 @@ from implementations import (
 
 N_THRESHOLDS = 100
 
+# Seed of every random generator: hold-out split, CV folds, SGD shuffling (np.random),
+# Nystrom landmarks, power iteration
+SEED = 1
+
 # Linear model: lambda = 0, gradient descent converged at 300 steps
 LINEAR_MAX_ITERS = 300
 LINEAR_GAMMA = 1.0

@@ -17,10 +17,9 @@ import numpy as np
 from features import build_features
 from helpers import load_csv_data, load_csv_data_labels
 from implementations import *
-from model import f1_score, find_best_threshold, quadratic_logistic
+from model import SEED, f1_score, find_best_threshold, quadratic_logistic
 
 DATA_DIR = sys.argv[1] if len(sys.argv) > 1 else "./data"
-SEED = 1
 HOLDOUT_RATIO = 0.2
 K_FOLD = 3
 LAMBDAS = [0, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1, 10]
@@ -96,6 +95,8 @@ def regularized_logistic(lambda_, L):
         y, tx, lambda_, np.zeros(tx.shape[1]), max_iters, gamma
     )
 
+
+np.random.seed(SEED)
 
 x_labels = load_csv_data_labels(DATA_DIR)
 x_train, x_test, y_train, _ = load_csv_data(DATA_DIR)
