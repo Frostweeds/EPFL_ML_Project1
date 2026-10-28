@@ -1,8 +1,5 @@
 """Normalization of the raw BRFSS columns: special codes, then units.
 
-`labels` is {column index: feature name} describing the columns of `data`. Every function
-returns a copy.
-
 Special value codes per column are taken from the BRFSS 2015 codebook:
 https://www.cdc.gov/brfss/annual_data/2015/pdf/codebook15_llcp.pdf
 (linked from https://www.cdc.gov/brfss/annual_data/annual_2015.html).
@@ -10,307 +7,102 @@ https://www.cdc.gov/brfss/annual_data/2015/pdf/codebook15_llcp.pdf
 
 import numpy as np
 
-# "Don't know / Not sure", "Refused" and "Missing" answers, to be replaced by NaN
+# "Don't know / Not sure", "Refused" and "Missing" answers, to be replaced by NaN.
+# Codes -> columns, in codebook order within each group.
+# fmt: off
+MISSING_CODES_COLUMNS = {
+    (7, 9): """
+        LANDLINE GENHLTH HLTHPLN1 PERSDOC2 MEDCOST CHECKUP1 BPHIGH4 BPMEDS BLOODCHO
+        CHOLCHK TOLDHI2 CVDSTRK3 ASTHMA3 ASTHNOW CHCSCNCR CHCOCNCR CHCCOPD1 HAVARTH3
+        ADDEPEV2 CHCKIDNY DIABETE3 RENTHOM1 NUMHHOL2 NUMPHON2 CPDEMO1 VETERAN3 INTERNET
+        PREGNANT QLACTLM2 USEEQUIP BLIND DECIDE DIFFWALK DIFFDRES DIFFALON SMOKE100
+        SMOKDAY2 STOPSMK2 USENOW3 EXERANY2 LMTJOIN3 ARTHDIS2 ARTHSOCL SEATBELT FLUSHOT6
+        PNEUVAC3 HIVTST6 PDIABTST PREDIAB1 EYEEXAM DIABEYE DIABEDU CAREGIV1 CRGVLNG1
+        CRGVHRS1 CRGVPERS CRGVHOUS CRGVMST2 CRGVEXPT VIPRFVS2 VIEYEXM2 VIINSUR2 CIMEMLOS
+        CDHOUSE CDASSIST CDHELP CDSOCIAL CDDISCUS WTCHSALT DRADVISE ASYMPTOM ASTHMED3
+        ASINHALR HAREHAB1 STREHAB1 CVDASPRN ASPUNSAF RLIVPAIN RDUCHART RDUCSTRK ARTTODAY
+        ARTHWGT ARTHEXER ARTHEDU TETANUS HPVADVC2 SHINGLE2 HADMAM HOWLONG HADPAP2
+        LASTPAP2 HPVTEST HPLSTTST HADHYST2 PROFEXAM LENGEXAM BLDSTOOL LSTBLDS3 HADSIGM3
+        HADSGCO1 LASTSIG3 PCPSAAD2 PCPSADI1 PCPSARE1 PSATEST1 PSATIME PCPSARS1 PCDMDECN
+        SCNTMNY1 SCNTMEL1 SCNTPAID SCNTLPAD SXORIENT TRNSGNDR RCSRLTN2 CASTHDX2 CASTHNO2
+        EMTSUPRT LSATISFY MISTMNT ADANXEV DRNKANY5
+    """.split(),
+    (77, 99): """
+        HHADULT PHYSHLTH MENTHLTH POORHLTH INCOME2 LASTSMK2 AVEDRNK2 DRNK3GE5 MAXDRNKS
+        EXRACT11 EXRACT21 JOINPAIN IMFVPLAC WHRTST10 DOCTDIAB CHKHEMO3 FEETCHK CRGVREL1
+        CRGVPRB1 VINOCRE2 HPVADSHT ADPLEASR ADDOWN ADSLEEP ADENERGY ADEAT1 ADFAIL
+        ADTHINK ADMOVE _CRACE1 _CPRACE _PRACE1 _MRACE1
+    """.split(),
+    (777, 999): """
+        ALCDAY5 FRUITJU1 FRUIT1 FVBEANS FVGREEN FVORANG VEGETAB1 EXEROFT1 EXERHMM1
+        EXEROFT2 EXERHMM2 STRENGTH BLDSUGAR FEETCHK2 LONGWTCH ASACTLIM
+    """.split(),
+    (7777, 9999): ["WEIGHT2", "HEIGHT3"],
+    (777777, 999999): ["FLSHTMY2", "HIVTSTD3"],
+    (9,): """
+        MARITAL EDUCA EMPLOY1 INSULIN PCPSADE1 RCSGENDR _CHISPNC _RFHLTH _HCVU651
+        _RFHYPE5 _CHOLCHK _RFCHOL _LTASTH1 _CASTHM1 _ASTHMS1 _HISPANC _RACE _RACEG21
+        _RACEGR3 _RFBMI5 _CHLDCNT _EDUCAG _INCOMG _SMOKER3 _RFSMOK3 _RFBING5 _RFDRHV5
+        _FRTLT1 _VEGLT1 _TOTINDA PAMISS1_ _PACAT1 _PAINDX1 _PA150R2 _PA300R2 _PA30021
+        _PASTRNG _PAREC1 _PASTAE1 _LMTACT1 _LMTWRK1 _LMTSCL1 _RFSEAT2 _RFSEAT3 _FLSHOT6
+        _PNEUMO2 _AIDTST3
+    """.split(),
+    (99,): ["CHILDREN", "PAFREQ1_", "PAFREQ2_", "STRFREQ_"],
+    (999,): ["MAXVO2_", "FC60_"],
+    (7,): "VIDFCLT2 VIREDIF3 VICTRCT4 VIGLUMA2 VIMACDG2 ASATTACK ASNOSLEP".split(),
+    (98, 99): ["DIABAGE2", "ASTHMAGE", "ASRCHKUP"],
+    (98,): ["ASERVIST", "ASDRVIST"],
+    (97, 99): ["SCNTWRK1", "SCNTLWK1"],
+    (14,): ["_AGEG5YR"],
+    (3,): ["_AGE65YR"],
+    (99999,): ["WTKG3"],
+    (900,): ["DROCDY3_"],
+    (99900,): ["_DRNKWEK"],
+}
+
+# "None" / "Never" answers of count or frequency questions (e.g. PHYSHLTH 88 = 0 days), to
+# be replaced by 0. Codes -> columns.
+NONE_CODES_COLUMNS = {
+    (88,): """
+        PHYSHLTH MENTHLTH POORHLTH CHILDREN DRNK3GE5 DOCTDIAB FEETCHK ASERVIST ASDRVIST
+        ASRCHKUP ADPLEASR ADDOWN ADSLEEP ADENERGY ADEAT1 ADFAIL ADTHINK ADMOVE
+    """.split(),
+    (888,): ["ALCDAY5", "STRENGTH", "BLDSUGAR", "FEETCHK2", "ASACTLIM"],
+    (555,): ["FRUITJU1", "FRUIT1", "FVBEANS", "FVGREEN", "FVORANG", "VEGETAB1"],
+    (88, 98): ["CHKHEMO3"],  # 98 = never heard of the A1C test
+    (98,): ["SCNTWRK1", "SCNTLWK1"],  # 98 = zero hours (does not work)
+}
+# fmt: on
+
+# Column -> codes, as used by replace_codes
 MISSING_CODES = {
-    "LANDLINE": [7, 9],
-    "HHADULT": [77, 99],
-    "GENHLTH": [7, 9],
-    "PHYSHLTH": [77, 99],
-    "MENTHLTH": [77, 99],
-    "POORHLTH": [77, 99],
-    "HLTHPLN1": [7, 9],
-    "PERSDOC2": [7, 9],
-    "MEDCOST": [7, 9],
-    "CHECKUP1": [7, 9],
-    "BPHIGH4": [7, 9],
-    "BPMEDS": [7, 9],
-    "BLOODCHO": [7, 9],
-    "CHOLCHK": [7, 9],
-    "TOLDHI2": [7, 9],
-    "CVDSTRK3": [7, 9],
-    "ASTHMA3": [7, 9],
-    "ASTHNOW": [7, 9],
-    "CHCSCNCR": [7, 9],
-    "CHCOCNCR": [7, 9],
-    "CHCCOPD1": [7, 9],
-    "HAVARTH3": [7, 9],
-    "ADDEPEV2": [7, 9],
-    "CHCKIDNY": [7, 9],
-    "DIABETE3": [7, 9],
-    "DIABAGE2": [98, 99],
-    "MARITAL": [9],
-    "EDUCA": [9],
-    "RENTHOM1": [7, 9],
-    "NUMHHOL2": [7, 9],
-    "NUMPHON2": [7, 9],
-    "CPDEMO1": [7, 9],
-    "VETERAN3": [7, 9],
-    "EMPLOY1": [9],
-    "CHILDREN": [99],
-    "INCOME2": [77, 99],
-    "INTERNET": [7, 9],
-    "WEIGHT2": [7777, 9999],
-    "HEIGHT3": [7777, 9999],
-    "PREGNANT": [7, 9],
-    "QLACTLM2": [7, 9],
-    "USEEQUIP": [7, 9],
-    "BLIND": [7, 9],
-    "DECIDE": [7, 9],
-    "DIFFWALK": [7, 9],
-    "DIFFDRES": [7, 9],
-    "DIFFALON": [7, 9],
-    "SMOKE100": [7, 9],
-    "SMOKDAY2": [7, 9],
-    "STOPSMK2": [7, 9],
-    "LASTSMK2": [77, 99],
-    "USENOW3": [7, 9],
-    "ALCDAY5": [777, 999],
-    "AVEDRNK2": [77, 99],
-    "DRNK3GE5": [77, 99],
-    "MAXDRNKS": [77, 99],
-    "FRUITJU1": [777, 999],
-    "FRUIT1": [777, 999],
-    "FVBEANS": [777, 999],
-    "FVGREEN": [777, 999],
-    "FVORANG": [777, 999],
-    "VEGETAB1": [777, 999],
-    "EXERANY2": [7, 9],
-    "EXRACT11": [77, 99],
-    "EXEROFT1": [777, 999],
-    "EXERHMM1": [777, 999],
-    "EXRACT21": [77, 99],
-    "EXEROFT2": [777, 999],
-    "EXERHMM2": [777, 999],
-    "STRENGTH": [777, 999],
-    "LMTJOIN3": [7, 9],
-    "ARTHDIS2": [7, 9],
-    "ARTHSOCL": [7, 9],
-    "JOINPAIN": [77, 99],
-    "SEATBELT": [7, 9],
-    "FLUSHOT6": [7, 9],
-    "FLSHTMY2": [777777, 999999],
-    "IMFVPLAC": [77, 99],
-    "PNEUVAC3": [7, 9],
-    "HIVTST6": [7, 9],
-    "HIVTSTD3": [777777, 999999],
-    "WHRTST10": [77, 99],
-    "PDIABTST": [7, 9],
-    "PREDIAB1": [7, 9],
-    "INSULIN": [9],
-    "BLDSUGAR": [777, 999],
-    "FEETCHK2": [777, 999],
-    "DOCTDIAB": [77, 99],
-    "CHKHEMO3": [77, 99],
-    "FEETCHK": [77, 99],
-    "EYEEXAM": [7, 9],
-    "DIABEYE": [7, 9],
-    "DIABEDU": [7, 9],
-    "CAREGIV1": [7, 9],
-    "CRGVREL1": [77, 99],
-    "CRGVLNG1": [7, 9],
-    "CRGVHRS1": [7, 9],
-    "CRGVPRB1": [77, 99],
-    "CRGVPERS": [7, 9],
-    "CRGVHOUS": [7, 9],
-    "CRGVMST2": [7, 9],
-    "CRGVEXPT": [7, 9],
-    "VIDFCLT2": [7],
-    "VIREDIF3": [7],
-    "VIPRFVS2": [7, 9],
-    "VINOCRE2": [77, 99],
-    "VIEYEXM2": [7, 9],
-    "VIINSUR2": [7, 9],
-    "VICTRCT4": [7],
-    "VIGLUMA2": [7],
-    "VIMACDG2": [7],
-    "CIMEMLOS": [7, 9],
-    "CDHOUSE": [7, 9],
-    "CDASSIST": [7, 9],
-    "CDHELP": [7, 9],
-    "CDSOCIAL": [7, 9],
-    "CDDISCUS": [7, 9],
-    "WTCHSALT": [7, 9],
-    "LONGWTCH": [777, 999],
-    "DRADVISE": [7, 9],
-    "ASTHMAGE": [98, 99],
-    "ASATTACK": [7],
-    "ASERVIST": [98],
-    "ASDRVIST": [98],
-    "ASRCHKUP": [98, 99],
-    "ASACTLIM": [777, 999],
-    "ASYMPTOM": [7, 9],
-    "ASNOSLEP": [7],
-    "ASTHMED3": [7, 9],
-    "ASINHALR": [7, 9],
-    "HAREHAB1": [7, 9],
-    "STREHAB1": [7, 9],
-    "CVDASPRN": [7, 9],
-    "ASPUNSAF": [7, 9],
-    "RLIVPAIN": [7, 9],
-    "RDUCHART": [7, 9],
-    "RDUCSTRK": [7, 9],
-    "ARTTODAY": [7, 9],
-    "ARTHWGT": [7, 9],
-    "ARTHEXER": [7, 9],
-    "ARTHEDU": [7, 9],
-    "TETANUS": [7, 9],
-    "HPVADVC2": [7, 9],
-    "HPVADSHT": [77, 99],
-    "SHINGLE2": [7, 9],
-    "HADMAM": [7, 9],
-    "HOWLONG": [7, 9],
-    "HADPAP2": [7, 9],
-    "LASTPAP2": [7, 9],
-    "HPVTEST": [7, 9],
-    "HPLSTTST": [7, 9],
-    "HADHYST2": [7, 9],
-    "PROFEXAM": [7, 9],
-    "LENGEXAM": [7, 9],
-    "BLDSTOOL": [7, 9],
-    "LSTBLDS3": [7, 9],
-    "HADSIGM3": [7, 9],
-    "HADSGCO1": [7, 9],
-    "LASTSIG3": [7, 9],
-    "PCPSAAD2": [7, 9],
-    "PCPSADI1": [7, 9],
-    "PCPSARE1": [7, 9],
-    "PSATEST1": [7, 9],
-    "PSATIME": [7, 9],
-    "PCPSARS1": [7, 9],
-    "PCPSADE1": [9],
-    "PCDMDECN": [7, 9],
-    "SCNTMNY1": [7, 9],
-    "SCNTMEL1": [7, 9],
-    "SCNTPAID": [7, 9],
-    "SCNTWRK1": [97, 99],
-    "SCNTLPAD": [7, 9],
-    "SCNTLWK1": [97, 99],
-    "SXORIENT": [7, 9],
-    "TRNSGNDR": [7, 9],
-    "RCSGENDR": [9],
-    "RCSRLTN2": [7, 9],
-    "CASTHDX2": [7, 9],
-    "CASTHNO2": [7, 9],
-    "EMTSUPRT": [7, 9],
-    "LSATISFY": [7, 9],
-    "ADPLEASR": [77, 99],
-    "ADDOWN": [77, 99],
-    "ADSLEEP": [77, 99],
-    "ADENERGY": [77, 99],
-    "ADEAT1": [77, 99],
-    "ADFAIL": [77, 99],
-    "ADTHINK": [77, 99],
-    "ADMOVE": [77, 99],
-    "MISTMNT": [7, 9],
-    "ADANXEV": [7, 9],
-    "_CHISPNC": [9],
-    "_CRACE1": [77, 99],
-    "_CPRACE": [77, 99],
-    "_RFHLTH": [9],
-    "_HCVU651": [9],
-    "_RFHYPE5": [9],
-    "_CHOLCHK": [9],
-    "_RFCHOL": [9],
-    "_LTASTH1": [9],
-    "_CASTHM1": [9],
-    "_ASTHMS1": [9],
-    "_PRACE1": [77, 99],
-    "_MRACE1": [77, 99],
-    "_HISPANC": [9],
-    "_RACE": [9],
-    "_RACEG21": [9],
-    "_RACEGR3": [9],
-    "_AGEG5YR": [14],
-    "_AGE65YR": [3],
-    "WTKG3": [99999],
-    "_RFBMI5": [9],
-    "_CHLDCNT": [9],
-    "_EDUCAG": [9],
-    "_INCOMG": [9],
-    "_SMOKER3": [9],
-    "_RFSMOK3": [9],
-    "DRNKANY5": [7, 9],
-    "DROCDY3_": [900],
-    "_RFBING5": [9],
-    "_DRNKWEK": [99900],
-    "_RFDRHV5": [9],
-    "_FRTLT1": [9],
-    "_VEGLT1": [9],
-    "_TOTINDA": [9],
-    "MAXVO2_": [999],
-    "FC60_": [999],
-    "PAFREQ1_": [99],
-    "PAFREQ2_": [99],
-    "STRFREQ_": [99],
-    "PAMISS1_": [9],
-    "_PACAT1": [9],
-    "_PAINDX1": [9],
-    "_PA150R2": [9],
-    "_PA300R2": [9],
-    "_PA30021": [9],
-    "_PASTRNG": [9],
-    "_PAREC1": [9],
-    "_PASTAE1": [9],
-    "_LMTACT1": [9],
-    "_LMTWRK1": [9],
-    "_LMTSCL1": [9],
-    "_RFSEAT2": [9],
-    "_RFSEAT3": [9],
-    "_FLSHOT6": [9],
-    "_PNEUMO2": [9],
-    "_AIDTST3": [9],
+    name: list(codes)
+    for codes, names in MISSING_CODES_COLUMNS.items()
+    for name in names
 }
 
-# "None" / "Never" answers of count or frequency questions (e.g. PHYSHLTH 88 = 0 days), to be replaced by 0
 NONE_CODES = {
-    "PHYSHLTH": [88],
-    "MENTHLTH": [88],
-    "POORHLTH": [88],
-    "CHILDREN": [88],
-    "ALCDAY5": [888],
-    "DRNK3GE5": [88],
-    "FRUITJU1": [555],
-    "FRUIT1": [555],
-    "FVBEANS": [555],
-    "FVGREEN": [555],
-    "FVORANG": [555],
-    "VEGETAB1": [555],
-    "STRENGTH": [888],
-    "BLDSUGAR": [888],
-    "FEETCHK2": [888],
-    "DOCTDIAB": [88],
-    "CHKHEMO3": [88, 98],  # 98 = never heard of the A1C test
-    "FEETCHK": [88],
-    "ASERVIST": [88],
-    "ASDRVIST": [88],
-    "ASRCHKUP": [88],
-    "ASACTLIM": [888],
-    "ADPLEASR": [88],
-    "ADDOWN": [88],
-    "ADSLEEP": [88],
-    "ADENERGY": [88],
-    "ADEAT1": [88],
-    "ADFAIL": [88],
-    "ADTHINK": [88],
-    "ADMOVE": [88],
-    "SCNTWRK1": [98],  # 98 = zero hours (does not work)
-    "SCNTLWK1": [98],
+    name: list(codes) for codes, names in NONE_CODES_COLUMNS.items() for name in names
 }
 
-# First digit = unit -> days per unit (203 = 3 per week)
+# First digit = unit, then the count (203 = 3 per week). Unit -> days per unit
+PER_WEEK_MONTH = {1: 7, 2: 30}
+PER_DAY_WEEK_MONTH = {1: 1, 2: 7, 3: 30}
+PER_DAY_WEEK_MONTH_YEAR = {1: 1, 2: 7, 3: 30, 4: 365}
+
 FREQUENCY_UNITS = {
-    "ALCDAY5": {1: 7, 2: 30},
-    "FRUITJU1": {1: 1, 2: 7, 3: 30},
-    "FRUIT1": {1: 1, 2: 7, 3: 30},
-    "FVBEANS": {1: 1, 2: 7, 3: 30},
-    "FVGREEN": {1: 1, 2: 7, 3: 30},
-    "FVORANG": {1: 1, 2: 7, 3: 30},
-    "VEGETAB1": {1: 1, 2: 7, 3: 30},
-    "EXEROFT1": {1: 7, 2: 30},
-    "EXEROFT2": {1: 7, 2: 30},
-    "STRENGTH": {1: 7, 2: 30},
-    "BLDSUGAR": {1: 1, 2: 7, 3: 30, 4: 365},
-    "FEETCHK2": {1: 1, 2: 7, 3: 30, 4: 365},
+    "ALCDAY5": PER_WEEK_MONTH,
+    "FRUITJU1": PER_DAY_WEEK_MONTH,
+    "FRUIT1": PER_DAY_WEEK_MONTH,
+    "FVBEANS": PER_DAY_WEEK_MONTH,
+    "FVGREEN": PER_DAY_WEEK_MONTH,
+    "FVORANG": PER_DAY_WEEK_MONTH,
+    "VEGETAB1": PER_DAY_WEEK_MONTH,
+    "EXEROFT1": PER_WEEK_MONTH,
+    "EXEROFT2": PER_WEEK_MONTH,
+    "STRENGTH": PER_WEEK_MONTH,
+    "BLDSUGAR": PER_DAY_WEEK_MONTH_YEAR,
+    "FEETCHK2": PER_DAY_WEEK_MONTH_YEAR,
 }
 
 
@@ -320,11 +112,14 @@ def column_index(labels):
 
 
 def replace_codes(labels, data, codes_per_column, new_value):
+    """In each column of codes_per_column, its codes -> new_value. Returns a copy."""
     data = data.copy()
     index = column_index(labels)
+
     for name, codes in codes_per_column.items():
         j = index[name]
         data[np.isin(data[:, j], codes), j] = new_value
+
     return data
 
 
@@ -343,11 +138,14 @@ def normalize_weight_to_kg(labels, data):
     data = data.copy()
     j = column_index(labels)["WEIGHT2"]
     w = data[:, j]
+
     kg = np.full(w.shape, np.nan)
     pounds, metric = (w >= 50) & (w <= 999), (w >= 9000) & (w <= 9998)
     kg[pounds] = w[pounds] * 0.45359237
     kg[metric] = w[metric] - 9000
+
     data[:, j] = kg
+
     return data
 
 
@@ -356,13 +154,17 @@ def normalize_height_to_cm(labels, data):
     data = data.copy()
     j = column_index(labels)["HEIGHT3"]
     h = data[:, j]
+
     feet, inches = h // 100, h % 100
     cm = np.full(h.shape, np.nan)
     imperial = (h >= 200) & (h <= 711) & (inches < 12)
     metric = (h >= 9000) & (h <= 9998)
+
     cm[imperial] = (feet[imperial] * 12 + inches[imperial]) * 2.54
     cm[metric] = h[metric] - 9000
+
     data[:, j] = cm
+
     return data
 
 
@@ -370,6 +172,7 @@ def normalize_frequency_to_per_day(labels, data):
     """Frequencies -> times per day."""
     data = data.copy()
     index = column_index(labels)
+
     for name, days_per_unit in FREQUENCY_UNITS.items():
         j = index[name]
         v = data[:, j]
@@ -379,6 +182,7 @@ def normalize_frequency_to_per_day(labels, data):
             in_unit = (v // 100) == unit
             per_day[in_unit] = (v[in_unit] % 100) / days
         data[:, j] = per_day
+
     return data
 
 
@@ -387,11 +191,14 @@ def normalize_duration_to_days(labels, data):
     data = data.copy()
     j = column_index(labels)["LONGWTCH"]
     v = data[:, j]
+
     days = np.full(v.shape, np.nan)
-    for unit, days_per_unit in {1: 1, 2: 7, 3: 30, 4: 365}.items():
+    for unit, days_per_unit in PER_DAY_WEEK_MONTH_YEAR.items():
         in_unit = (v // 100) == unit
         days[in_unit] = (v[in_unit] % 100) * days_per_unit
+
     data[:, j] = days
+
     return data
 
 
@@ -399,9 +206,11 @@ def normalize_hours_minutes_to_minutes(labels, data):
     """EXERHMM1/2: 130 = 1h30 -> minutes."""
     data = data.copy()
     index = column_index(labels)
+
     for name in ["EXERHMM1", "EXERHMM2"]:
         v = data[:, index[name]]
         data[:, index[name]] = (v // 100) * 60 + v % 100
+
     return data
 
 
@@ -409,12 +218,14 @@ def normalize_month_year_to_year(labels, data):
     """FLSHTMY2, HIVTSTD3: 32015 = March 2015 -> 2015.21."""
     data = data.copy()
     index = column_index(labels)
+
     for name in ["FLSHTMY2", "HIVTSTD3"]:
         v = data[:, index[name]]
         month, year = v // 10000, v % 10000
         year_fraction = np.where(month == 77, 0.5, (month - 0.5) / 12)
         valid = ((month <= 12) | (month == 77)) & (year >= 1985) & (year <= 2016)
         data[:, index[name]] = np.where(valid, year + year_fraction, np.nan)
+
     return data
 
 
@@ -422,12 +233,14 @@ def normalize_codes(labels, data):
     """Codes first, then units."""
     data = normalize_missing_codes(labels, data)
     data = normalize_none_codes(labels, data)
+
     data = normalize_weight_to_kg(labels, data)
     data = normalize_height_to_cm(labels, data)
     data = normalize_frequency_to_per_day(labels, data)
     data = normalize_duration_to_days(labels, data)
     data = normalize_hours_minutes_to_minutes(labels, data)
     data = normalize_month_year_to_year(labels, data)
+
     return data
 
 
@@ -436,4 +249,5 @@ def normalize_nan(data, mean_per_feature):
     new_data = data.copy()
     row, col = np.where(np.isnan(data))
     new_data[row, col] = mean_per_feature[col]
+
     return new_data

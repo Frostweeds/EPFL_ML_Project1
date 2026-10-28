@@ -12,28 +12,14 @@ Every statistic is fitted on x_train and reused for x_test.
 import numpy as np
 
 from normalize import normalize_codes, normalize_nan
-from preprocessing import (
-    CATEGORY_COLUMNS,
-    IDENTIFIER_COLUMNS,
-    LEAK_COLUMNS,
-    SURVEY_DESIGN_COLUMNS,
-    add_bias,
-    add_missing_indicator_columns,
-    expand_category_column,
-    find_constant_columns,
-    find_correlated_columns,
-    find_incomplete_columns,
-    find_low_output_correlation_columns,
-    find_missing_indicator_columns,
-    fit_outlier_bounds,
-    standardize,
-)
+from preprocessing import *
 
 
 def drop(labels, x_train, x_test, filter_names):
     """Drop filter_names from x_train and x_test. Returns the new labels, x_train, x_test."""
     kept = [i for (i, name) in labels.items() if name not in filter_names]
     new_labels = dict(enumerate(labels[i] for i in kept))
+
     return new_labels, x_train[:, kept], x_test[:, kept]
 
 
@@ -43,9 +29,11 @@ def build_features(x_labels, x_train, x_test, y_train):
     labels = x_labels
     x_tr = normalize_codes(labels, x_train)
     x_te = normalize_codes(labels, x_test)
+
     labels, x_tr, x_te = drop(
         labels, x_tr, x_te, IDENTIFIER_COLUMNS + SURVEY_DESIGN_COLUMNS
     )
+
     # Before the quality filters: a dropped column keeps its indicator (e.g. STREHAB1)
     indicator_columns = find_missing_indicator_columns(labels, x_tr)
     _, x_te = add_missing_indicator_columns(labels, x_te, indicator_columns)
@@ -62,12 +50,11 @@ def build_features(x_labels, x_train, x_test, y_train):
         categories = np.unique(x_tr[~np.isnan(x_tr[:, j]), j])
         _, x_te = expand_category_column(labels, x_te, name, categories)
         labels, x_tr = expand_category_column(labels, x_tr, name, categories)
+
     lower, upper = fit_outlier_bounds(x_tr)
     x_tr, x_te = np.clip(x_tr, lower, upper), np.clip(x_te, lower, upper)
 
-    # Selection, on the encoded and clipped features: the nominal codes (MARITAL 1 - 6)
-    # are only correlated with y as dummies, and a few outliers can hide a duplicate
-    # (PAFREQ2_ = 7 x EXEROFT2)
+    # Selection
     labels, x_tr, x_te = drop(
         labels, x_tr, x_te, find_low_output_correlation_columns(labels, x_tr, y_train)
     )
@@ -79,4 +66,5 @@ def build_features(x_labels, x_train, x_test, y_train):
     mean, std = np.nanmean(x_tr, axis=0), np.nanstd(x_tr, axis=0)
     tx_train = add_bias(standardize(normalize_nan(x_tr, mean), mean, std))
     tx_test = add_bias(standardize(normalize_nan(x_te, mean), mean, std))
+
     return tx_train, tx_test
