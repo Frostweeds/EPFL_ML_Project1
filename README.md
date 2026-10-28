@@ -49,9 +49,9 @@ and reused unchanged on `x_test`.
    columns (weights, questionnaire version).
 3. **Missing indicators**: a 0/1 column `X_missing` for each column with more than 5% NaN
    (and at least 100 NaN rows).
-4. **Constant / empty columns dropped**: one value in at least 99% of the rows, or more than
-   99% NaN; plus `HAREHAB1_missing`, which leaks the target (cardiac rehabilitation is only
-   asked after a heart attack).
+4. **Constant / empty columns dropped**: one value in at least 99% of the non-NaN rows
+   (missing indicators excepted), or more than 99% NaN; plus `HAREHAB1_missing`, which leaks
+   the target (cardiac rehabilitation is only asked after a heart attack).
 5. **One-hot encoding** of the nominal columns (`CATEGORY_COLUMNS` in `preprocessing.py`:
    marital status, employment, diabetes, ...), one 0/1 column per category.
 6. **Outlier clipping**: continuous columns (more than 10 distinct values) clipped to their
@@ -92,11 +92,12 @@ Selected model on the hold-out split: F1 0.428.
 
 ### Kernel experiment (`run_experiment.py`)
 
-A non-linear model with the same features: the RBF kernel k(x, z) = exp(-g ||x - z||^2 / D),
-with g = 1 / median of ||x - x'||^2 / D, is approximated with 500 random training rows as
-landmarks (Nystrom). The (at most) 500 standardized features phi(x), with phi(x)^T phi(z) ~ k(x, z),
-are appended to the 356 features, then logistic regression (gamma < 8 / L, at most 1000 steps)
-and the F1-maximizing threshold, as in `run.py`. Same 80 / 20 split as `cross_validation.py`.
+A non-linear model with the same features: the RBF kernel
+k(x, z) = exp(-g ||x - z||^2 / D), with g = 1 / median of ||x - x'||^2 / D, is approximated
+with 500 random training rows as landmarks (Nystrom). The (at most) 500 standardized
+features phi(x), with phi(x)^T phi(z) ~ k(x, z), are appended to the 356 features, then
+logistic regression (gamma < 8 / L, at most 1000 steps) and the F1-maximizing threshold, as
+in `run.py`. Same 80 / 20 split as `cross_validation.py`.
 
 | model | hold-out F1 |
 |---|---|
@@ -104,5 +105,4 @@ and the F1-maximizing threshold, as in `run.py`. Same 80 / 20 split as `cross_va
 | Nystrom RBF + logistic regression | 0.426 |
 
 The kernel does not improve on the linear model (train F1 0.439: it fits the training rows a
-little better, without generalizing better) and needs ~8 GB of memory, so the submission keeps
-logistic regression.
+little better, without generalizing better), so the submission keeps logistic regression.
