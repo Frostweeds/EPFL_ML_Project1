@@ -7,12 +7,15 @@ whole training set, decision threshold maximizing F1 on the training set.
     python run.py                 # experiment_5: without the HAREHAB1 leak feature
     python run.py --leak          # experiment_6: with the HAREHAB1 leak feature (see README.md)
     python run.py --leak-only     # experiment_7: only the bias and the HAREHAB1 leak feature
+    python run.py --best          # best leaderboard submission (F1 0.453): --leak features +
+                                  # ensemble of experiments/ensemble.py (~10 more minutes)
     python run.py --output x.csv  # other output path
 
 Takes ~2 minutes.
 """
 
 import argparse
+import sys
 
 import numpy as np
 
@@ -140,29 +143,43 @@ def main():
         action="store_true",
         help="keep only the bias and the HAREHAB1 leak feature",
     )
+    parser.add_argument(
+        "--best",
+        action="store_true",
+        help="leak features + ensemble (interactions, Nystrom RBF, MLP), best submission",
+    )
     parser.add_argument("--output", default=OUTPUT_PATH, help="submission path")
     args = parser.parse_args()
 
     x_labels = load_csv_data_labels(DATA_DIR)
     x_train, x_test, y_train, _, test_ids = load_csv_data(DATA_DIR)
     feature_names, tx_train, tx_test = build_features(
-        x_labels, x_train, x_test, y_train, args.leak or args.leak_only
+        x_labels, x_train, x_test, y_train, args.leak or args.leak_only or args.best
     )
+    del x_train, x_test  # raw data no longer needed (memory)
     if args.leak_only:
         kept = [0] + [j for j, n in enumerate(feature_names) if n.endswith("_answered")]
         feature_names = [feature_names[j] for j in kept]
         tx_train, tx_test = tx_train[:, kept], tx_test[:, kept]
     print(
-        f"features: {len(feature_names)} (leak: {args.leak}, leak only: {args.leak_only})"
+        f"features: {len(feature_names)} (leak: {args.leak}, leak only: {args.leak_only}, best: {args.best})"
     )
 
     y01 = (y_train == 1).astype(float)
-    initial_w = np.zeros(tx_train.shape[1])
-    w, loss = impl.logistic_regression(y01, tx_train, initial_w, MAX_ITERS, GAMMA)
-    threshold = find_best_threshold(tx_train.dot(w), y01)
-    print(f"train loss {loss:.4f}, threshold {threshold:.3f}")
+    if args.best:  # average of the standardized scores of the 3 models (experiments/ensemble.py)
+        sys.path.append("experiments")
+        from ensemble import BEST, all_scores, combine
 
-    y_pred = np.where(tx_test.dot(w) >= threshold, 1, -1)
+        train_scores, test_scores = combine(all_scores(tx_train, y01, tx_test, BEST), BEST)
+    else:
+        initial_w = np.zeros(tx_train.shape[1])
+        w, loss = impl.logistic_regression(y01, tx_train, initial_w, MAX_ITERS, GAMMA)
+        train_scores, test_scores = tx_train.dot(w), tx_test.dot(w)
+        print(f"train loss {loss:.4f}")
+    threshold = find_best_threshold(train_scores, y01)
+    print(f"threshold {threshold:.3f}")
+
+    y_pred = np.where(test_scores >= threshold, 1, -1)
     create_csv_submission(test_ids, y_pred, args.output)
     print(
         f"{args.output}: {len(y_pred)} predictions, {np.mean(y_pred == 1):.3f} positive"

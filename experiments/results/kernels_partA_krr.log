@@ -1,0 +1,53 @@
+data/experiment_5: train split (262508, 358), median ||x - x'||^2 / D = 1.351
+
+A. Kernel ridge regression, 8000 training rows per fold
+    fold 0: 77s
+    fold 1: 71s
+    fold 2: 71s
+  linear                 lam 0.0001: F1 0.3921 ± 0.0120 | train 0.4639 | per fold 0.3891 / 0.3793 / 0.4081
+  linear                 lam 0.001: F1 0.3970 ± 0.0120 | train 0.4487 | per fold 0.3975 / 0.3821 / 0.4115
+  linear                 lam 0.01: F1 0.3884 ± 0.0029 | train 0.4155 | per fold 0.3903 / 0.3842 / 0.3906
+  linear                 lam 0.1: F1 0.3678 ± 0.0037 | train 0.3796 | per fold 0.3636 / 0.3674 / 0.3725
+  linear                 lam 1: F1 0.3636 ± 0.0059 | train 0.3740 | per fold 0.3566 / 0.3630 / 0.3711
+    fold 0: 82s
+    fold 1: 81s
+    fold 2: 79s
+  poly2                  lam 0.0001: F1 0.3695 ± 0.0104 | train 0.8193 | per fold 0.3611 / 0.3632 / 0.3841
+  poly2                  lam 0.001: F1 0.3893 ± 0.0165 | train 0.5553 | per fold 0.4000 / 0.3660 / 0.4020
+  poly2                  lam 0.01: F1 0.3923 ± 0.0038 | train 0.4465 | per fold 0.3975 / 0.3910 / 0.3885
+  poly2                  lam 0.1: F1 0.3707 ± 0.0020 | train 0.3915 | per fold 0.3710 / 0.3681 / 0.3729
+  poly2                  lam 1: F1 0.3644 ± 0.0055 | train 0.3758 | per fold 0.3584 / 0.3631 / 0.3716
+    fold 0: 77s
+    fold 1: 78s
+    fold 2: 81s
+  poly3                  lam 0.0001: F1 0.3482 ± 0.0177 | train 0.9528 | per fold 0.3495 / 0.3260 / 0.3692
+  poly3                  lam 0.001: F1 0.3740 ± 0.0048 | train 0.7128 | per fold 0.3783 / 0.3762 / 0.3673
+  poly3                  lam 0.01: F1 0.3865 ± 0.0069 | train 0.4926 | per fold 0.3962 / 0.3817 / 0.3816
+  poly3                  lam 0.1: F1 0.3751 ± 0.0008 | train 0.4082 | per fold 0.3763 / 0.3748 / 0.3743
+  poly3                  lam 1: F1 0.3638 ± 0.0053 | train 0.3814 | per fold 0.3575 / 0.3633 / 0.3704
+    fold 0: 89s
+    fold 1: 91s
+    fold 2: 92s
+  rbf (g = 0.5/median)   lam 0.0001: F1 0.3817 ± 0.0072 | train 0.6284 | per fold 0.3814 / 0.3731 / 0.3906
+  rbf (g = 0.5/median)   lam 0.001: F1 0.3903 ± 0.0044 | train 0.4727 | per fold 0.3965 / 0.3880 / 0.3865
+  rbf (g = 0.5/median)   lam 0.01: F1 0.3773 ± 0.0021 | train 0.4102 | per fold 0.3781 / 0.3794 / 0.3744
+  rbf (g = 0.5/median)   lam 0.1: F1 0.3618 ± 0.0063 | train 0.3841 | per fold 0.3594 / 0.3555 / 0.3704
+  rbf (g = 0.5/median)   lam 1: F1 0.3625 ± 0.0048 | train 0.3772 | per fold 0.3565 / 0.3629 / 0.3681
+    fold 0: 95s
+    fold 1: 95s
+    fold 2: 89s
+  rbf (g = 1/median)     lam 0.0001: F1 0.3691 ± 0.0084 | train 0.7883 | per fold 0.3686 / 0.3591 / 0.3797
+  rbf (g = 1/median)     lam 0.001: F1 0.3926 ± 0.0057 | train 0.5185 | per fold 0.3970 / 0.3846 / 0.3963
+  rbf (g = 1/median)     lam 0.01: F1 0.3748 ± 0.0049 | train 0.4201 | per fold 0.3783 / 0.3678 / 0.3782
+  rbf (g = 1/median)     lam 0.1: F1 0.3599 ± 0.0042 | train 0.3859 | per fold 0.3590 / 0.3551 / 0.3654
+  rbf (g = 1/median)     lam 1: F1 0.3627 ± 0.0031 | train 0.3836 | per fold 0.3584 / 0.3639 / 0.3657
+    fold 0: 92s
+    fold 1: 91s
+    fold 2: 97s
+  rbf (g = 2/median)     lam 0.0001: F1 0.2942 ± 0.0421 | train 0.9365 | per fold 0.2489 / 0.2833 / 0.3502
+  rbf (g = 2/median)     lam 0.001: F1 0.3597 ± 0.0024 | train 0.5913 | per fold 0.3619 / 0.3609 / 0.3564
+  rbf (g = 2/median)     lam 0.01: F1 0.3524 ± 0.0008 | train 0.4224 | per fold 0.3530 / 0.3512 / 0.3529
+  rbf (g = 2/median)     lam 0.1: F1 0.3506 ± 0.0060 | train 0.3884 | per fold 0.3553 / 0.3421 / 0.3545
+  rbf (g = 2/median)     lam 1: F1 0.3589 ± 0.0033 | train 0.3994 | per fold 0.3543 / 0.3606 / 0.3617
+
+B. Nystrom (1000 landmarks) features + logistic regression, all training rows
