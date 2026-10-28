@@ -81,7 +81,7 @@ are written in {-1, 1}.
 
 ### Model selection and evaluation (`cross_validation.py`)
 
-- Fixed 80 / 20 split (seed 1); the 20% hold-out split is used once, for the selected model.
+- Fixed 80 / 20 train / hold-out split (seed 1).
 - 3-fold cross-validation on the 80% split. The threshold is always chosen on the training
   folds, then applied unchanged to the held-out fold.
 
@@ -100,7 +100,6 @@ are written in {-1, 1}.
 | SGD on the MSE (1 epoch, gamma = 1e-4) | 0.410 |
 | logistic regression (300 steps, gamma = 1) | 0.430 |
 | regularized logistic regression (lambda = 1e-4, 300 steps, gamma = 1) | 0.431 |
-| **quadratic model** | *to be measured* |
 
 On the hold-out split:
 
