@@ -12,6 +12,7 @@ report/                    the report
 implementations.py         the 6 required methods (least squares, ridge, GD, SGD, logistic, reg. logistic)
 run.py                     reproduces the submission (~2 min)
 cross_validation.py        model selection and evaluation of the report (~15 min)
+run_experiment.py          kernel experiment: Nystrom RBF features + logistic regression (~6 min)
 features.py                feature construction: raw rows -> model features
 normalize.py               BRFSS special codes (CDC codebook) -> NaN / 0, units
 preprocessing.py           column lists and the cleaning, encoding and selection steps
@@ -30,6 +31,7 @@ Requires Python 3 and numpy (`pip install numpy`).
 ```
 python run.py [data_dir]               # writes submission.csv
 python cross_validation.py [data_dir]  # model comparison, lambda curve, hold-out evaluation
+python run_experiment.py [data_dir]    # kernel experiment, writes submission_kernel.csv
 ```
 
 ## Pipeline
@@ -87,3 +89,20 @@ decision threshold on x^T w is not 0 but the one maximizing F1 on the training r
 | regularized logistic regression (lambda = 1e-4, 300 steps, gamma = 1) | 0.431 |
 
 Selected model on the hold-out split: F1 0.428.
+
+### Kernel experiment (`run_experiment.py`)
+
+A non-linear model with the same features: the RBF kernel k(x, z) = exp(-g ||x - z||^2 / D),
+with g = 1 / median of ||x - x'||^2 / D, is approximated with 500 random training rows as
+landmarks (Nystrom). The (at most) 500 standardized features phi(x), with phi(x)^T phi(z) ~ k(x, z),
+are appended to the 356 features, then logistic regression (gamma < 8 / L, at most 1000 steps)
+and the F1-maximizing threshold, as in `run.py`. Same 80 / 20 split as `cross_validation.py`.
+
+| model | hold-out F1 |
+|---|---|
+| logistic regression (selected model) | 0.428 |
+| Nystrom RBF + logistic regression | 0.426 |
+
+The kernel does not improve on the linear model (train F1 0.439: it fits the training rows a
+little better, without generalizing better) and needs ~8 GB of memory, so the submission keeps
+logistic regression.
